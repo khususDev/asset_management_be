@@ -1,0 +1,87 @@
+<?php
+
+namespace App\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class StorePurchaseRequestRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'department_id' => 'required',
+            'purpose' => 'required',
+            'approval_method' => 'required|in:SYSTEM,MANUAL',
+            'items' => 'required|array|min:1',
+
+            'items.*.item_description' => 'required',
+            'items.*.quantity' => 'required|numeric|min:1',
+            'items.*.unit_price' => 'required|numeric|min:0',
+
+            'items.*.vendor_id' => [
+                'nullable',
+                'required_if:items.*.need_to_issue_po,1'
+            ],
+
+            'items.*.payment_term_id' => [
+                'nullable',
+                'required_if:items.*.need_to_issue_po,1'
+            ],
+
+            'items.*.expected_arrival_date' => [
+                'nullable',
+                'required_if:items.*.need_to_issue_po,1'
+            ],
+
+            'items.*.delivery_id' => [
+                'nullable',
+                'required_if:items.*.need_to_issue_po,1'
+            ],
+        ];
+    }
+
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+
+            foreach ($this->items ?? [] as $index => $item) {
+
+                if (!empty($item['need_to_issue_po'])) {
+
+                    if (empty($item['vendor_id'])) {
+                        $validator->errors()->add(
+                            "items.$index.vendor_id",
+                            "Vendor wajib diisi jika Need PO dicentang."
+                        );
+                    }
+
+                    if (empty($item['payment_term_id'])) {
+                        $validator->errors()->add(
+                            "items.$index.payment_term_id",
+                            "Payment Term wajib diisi jika Need PO dicentang."
+                        );
+                    }
+
+                    if (empty($item['expected_arrival_date'])) {
+                        $validator->errors()->add(
+                            "items.$index.expected_arrival_date",
+                            "Expected Arrival wajib diisi jika Need PO dicentang."
+                        );
+                    }
+
+                    if (empty($item['delivery_id'])) {
+                        $validator->errors()->add(
+                            "items.$index.delivery_id",
+                            "Delivery Branch wajib diisi jika Need PO dicentang."
+                        );
+                    }
+                }
+            }
+        });
+    }
+}

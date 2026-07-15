@@ -1,0 +1,340 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+.root{padding:1rem 0;font-family:var(--font-sans);}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:1.25rem;}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-secondary);}
+.ldot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.modules{display:flex;flex-direction:column;gap:8px;}
+.mod{border:0.5px solid var(--border);border-radius:10px;overflow:hidden;}
+.mod-header{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;background:var(--surface-1);user-select:none;}
+.mod-header:hover{background:var(--surface-0);}
+.mod-num{font-size:11px;font-weight:500;color:var(--text-muted);min-width:16px;}
+.mod-title{font-size:13px;font-weight:500;color:var(--text-primary);flex:1;}
+.mod-tag{font-size:10px;padding:2px 7px;border-radius:4px;font-weight:500;}
+.tag-ok{background:var(--bg-success);color:var(--text-success);}
+.tag-new{background:var(--bg-accent);color:var(--text-accent);}
+.tag-revised{background:var(--bg-warning);color:var(--text-warning);}
+.chev{font-size:11px;color:var(--text-muted);transition:transform .2s;}
+.chev.open{transform:rotate(90deg);}
+.mod-body{display:none;padding:10px 14px 14px;border-top:0.5px solid var(--border);background:var(--surface-2);}
+.mod-body.open{display:block;}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;}
+.group{background:var(--surface-1);border:0.5px solid var(--border);border-radius:8px;padding:10px 12px;}
+.g-title{font-size:12px;font-weight:500;color:var(--text-primary);margin-bottom:6px;}
+.g-items{display:flex;flex-direction:column;gap:3px;}
+.gi{font-size:11px;color:var(--text-secondary);display:flex;align-items:flex-start;gap:5px;line-height:1.4;}
+.gi .dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+.dot-ok{background:#4caf50;}
+.dot-new{background:#1976d2;}
+.dot-fix{background:#ff9800;}
+.note{margin-top:8px;font-size:11px;color:var(--text-muted);background:var(--surface-0);border-radius:6px;padding:7px 10px;border-left:2px solid var(--border-strong);line-height:1.5;}
+.note.warn{border-left-color:#ff9800;}
+.note.info{border-left-color:#1976d2;}
+.note.ok{border-left-color:#4caf50;}
+</style>
+<div class="root">
+<div class="legend">
+  <div class="leg"><div class="ldot" style="background:#4caf50"></div>Tetap (sudah benar)</div>
+  <div class="leg"><div class="ldot" style="background:#1976d2"></div>Baru / ditambahkan</div>
+  <div class="leg"><div class="ldot" style="background:#ff9800"></div>Direvisi / dipindah</div>
+</div>
+<div class="modules" id="mods"></div>
+</div>
+<script>
+const data = [
+  {
+    num:"1", title:"Dashboard", tag:"revised", tagLabel:"Direvisi",
+    groups:[
+      {title:"Role-based Views", items:[
+        {d:"ok", t:"Executive Overview — Total asset value, budget utilization, KPI ringkas"},
+        {d:"ok", t:"Operations View — WO aktif, maintenance due, aset bermasalah"},
+        {d:"ok", t:"Finance View — Depreciation mtd, budget vs actual, cost center"},
+        {d:"new", t:"My Tasks — inbox approval + WO assigned ke user login"},
+      ]},
+      {title:"Alert Panels (widget)", items:[
+        {d:"new", t:"Warranty expiring ≤ 30 hari"},
+        {d:"new", t:"License expiring ≤ 30 hari"},
+        {d:"new", t:"Overdue Work Orders"},
+        {d:"new", t:"Low stock spare parts"},
+      ]}
+    ],
+    note:{type:"info", text:"Dashboard bukan hanya 1 halaman. Minimal 3 role-based view. 'My Tasks' menggantikan kebutuhan user cek approval dari tempat lain."}
+  },
+  {
+    num:"2", title:"Operations", tag:"revised", tagLabel:"Direvisi",
+    groups:[
+      {title:"Requests", items:[
+        {d:"ok", t:"Asset Request"},
+        {d:"ok", t:"Purchase Request"},
+        {d:"ok", t:"Transfer Request"},
+        {d:"new", t:"Disposal Request — dipindah ke sini dari Asset Operations"},
+      ]},
+      {title:"Procurement", items:[
+        {d:"new", t:"RFQ / Quotation — sebelum PO"},
+        {d:"ok", t:"Purchase Order"},
+        {d:"ok", t:"Receiving"},
+        {d:"new", t:"Goods Receipt Note (GRN) — dokumen legal wajib"},
+        {d:"new", t:"Return to Vendor (RTV)"},
+      ]},
+      {title:"Asset Operations", items:[
+        {d:"fix", t:"Asset Onboarding — ganti nama dari 'Registration', lebih jelas konteksnya"},
+        {d:"ok", t:"Assignment"},
+        {d:"ok", t:"Movement / Transfer"},
+        {d:"fix", t:"Disposal Process — execution disposal (Disposal Request ada di Requests)"},
+      ]}
+    ],
+    note:{type:"warn", text:"'Disposal Request' dipindah ke Requests karena ia adalah dokumen yang butuh approval, bukan aksi langsung. Execution-nya tetap di Asset Operations."}
+  },
+  {
+    num:"3", title:"Approvals", tag:"ok", tagLabel:"Solid",
+    groups:[
+      {title:"Inbox", items:[
+        {d:"ok", t:"Waiting Approval"},
+        {d:"ok", t:"My Submission"},
+        {d:"ok", t:"Approval History"},
+      ]},
+      {title:"Workflow", items:[
+        {d:"ok", t:"Approval Matrix"},
+        {d:"ok", t:"Escalation Rules"},
+        {d:"new", t:"Delegation Rules — jika approver cuti / tidak available"},
+      ]}
+    ],
+    note:{type:"ok", text:"Struktur sudah benar. Penambahan Delegation Rules adalah satu-satunya yang kritis dan sering dilupakan."}
+  },
+  {
+    num:"4", title:"Assets", tag:"revised", tagLabel:"Direvisi",
+    groups:[
+      {title:"Asset Registry", items:[
+        {d:"fix", t:"Asset List — langsung di level ini, hapus sub-menu redundan"},
+        {d:"new", t:"Asset Label Print — QR/Barcode cetak untuk tagging fisik"},
+        {d:"new", t:"Asset Condition — rating kondisi fisik aset (Good/Fair/Poor/Scrap)"},
+      ]},
+      {title:"Asset Audit", items:[
+        {d:"new", t:"Audit Plan — jadwal & scope audit"},
+        {d:"new", t:"Audit Execution — scan / input hasil lapangan"},
+        {d:"new", t:"Discrepancy Report — selisih data vs fisik"},
+        {d:"fix", t:"Audit History — riwayat semua audit selesai"},
+      ]},
+      {title:"Tracking", items:[
+        {d:"ok", t:"Current Location"},
+        {d:"ok", t:"Asset History"},
+      ]},
+      {title:"Contracts & Licenses", items:[
+        {d:"ok", t:"Contracts & Leases"},
+        {d:"ok", t:"License Registry"},
+        {d:"ok", t:"License Allocation"},
+        {d:"new", t:"License Compliance Status — berapa yang terpakai vs purchased"},
+      ]},
+      {title:"Warranty & Insurance", items:[
+        {d:"ok", t:"Warranty List"},
+        {d:"ok", t:"Expiration Monitoring"},
+        {d:"new", t:"Insurance Tracking — polis, periode, nilai pertanggungan"},
+      ]}
+    ],
+    note:{type:"warn", text:"Asset Audit sebelumnya hanya 1 item — tidak merepresentasikan proses audit fisik yang sebenarnya. Diperluas menjadi 4 sub-menu."}
+  },
+  {
+    num:"5", title:"Maintenance", tag:"revised", tagLabel:"Direvisi",
+    groups:[
+      {title:"Planning", items:[
+        {d:"ok", t:"Preventive Schedule"},
+        {d:"ok", t:"Maintenance Calendar"},
+        {d:"new", t:"SLA Configuration — target response & resolution time per tipe aset"},
+      ]},
+      {title:"Work Orders", items:[
+        {d:"fix", t:"Work Order List — gabungan semua WO (corrective & preventive)"},
+        {d:"fix", t:"WO Execution — update progress, technician assignment, spare parts used"},
+        {d:"new", t:"Repair Request — dari user lapangan, trigger WO corrective"},
+      ]},
+      {title:"Performance", items:[
+        {d:"new", t:"MTTR / MTBF Report — Mean Time To Repair & Between Failure"},
+        {d:"ok", t:"Maintenance History"},
+        {d:"new", t:"Cost per Asset — total biaya maintenance per aset"},
+      ]}
+    ],
+    note:{type:"warn", text:"'Maintenance Execution' dihapus karena duplikasi dengan Work Order. WO Execution adalah satu konsep, bukan dua menu."}
+  },
+  {
+    num:"6", title:"Inventory", tag:"revised", tagLabel:"Direvisi",
+    groups:[
+      {title:"Spare Parts", items:[
+        {d:"ok", t:"Parts List / Catalog"},
+        {d:"new", t:"Parts Linkage to Asset — part ini untuk aset/tipe apa"},
+      ]},
+      {title:"Warehouse & Storage", items:[
+        {d:"ok", t:"Warehouse List"},
+        {d:"ok", t:"Storage Locations"},
+        {d:"new", t:"Bin / Rack Management — slot level dalam storage"},
+      ]},
+      {title:"Stock Management", items:[
+        {d:"new", t:"Stock In — penerimaan parts (link dari GRN)"},
+        {d:"new", t:"Stock Out — pengeluaran parts (link dari WO Execution)"},
+        {d:"ok", t:"Stock Movement — histori semua in/out"},
+        {d:"ok", t:"Stock Opname — plan, eksekusi, result"},
+        {d:"ok", t:"Stock Adjustment"},
+        {d:"new", t:"Reorder Alert — notif saat stock di bawah minimum"},
+      ]}
+    ],
+    note:{type:"warn", text:"Stock In dan Stock Out harus menjadi transaksi eksplisit, bukan hanya dilihat di Movement. Ini penting untuk approval flow dan traceability."}
+  },
+  {
+    num:"7", title:"Financial", tag:"revised", tagLabel:"Direvisi",
+    groups:[
+      {title:"Valuation", items:[
+        {d:"ok", t:"Asset Valuation"},
+        {d:"new", t:"Asset Impairment — penyesuaian nilai saat kondisi turun drastis"},
+        {d:"new", t:"Revaluation History"},
+      ]},
+      {title:"Depreciation", items:[
+        {d:"ok", t:"Depreciation Schedule"},
+        {d:"new", t:"Depreciation Run — proses eksekusi hitung depresiasi per periode"},
+        {d:"new", t:"Depreciation Report — per aset, per kategori, per periode"},
+      ]},
+      {title:"Budget & Cost", items:[
+        {d:"ok", t:"Budget Planning"},
+        {d:"ok", t:"Budget Tracking"},
+        {d:"ok", t:"Cost Management"},
+        {d:"new", t:"Journal Export — output ke sistem akuntansi/ERP"},
+      ]}
+    ],
+    note:{type:"warn", text:"Depreciation Method dikonfigurasi di Master Data (per kategori aset), bukan di sini. Di sini adalah execution & reporting-nya saja."}
+  },
+  {
+    num:"8", title:"Reports & Analytics", tag:"revised", tagLabel:"Direvisi",
+    groups:[
+      {title:"Asset Reports", items:[
+        {d:"fix", t:"Asset Register Report"},
+        {d:"new", t:"Asset Aging Report"},
+        {d:"new", t:"Asset Utilization Report"},
+        {d:"new", t:"Disposal Report"},
+      ]},
+      {title:"Maintenance Reports", items:[
+        {d:"new", t:"Work Order Summary"},
+        {d:"new", t:"MTTR / MTBF Analysis"},
+        {d:"new", t:"Maintenance Cost Report"},
+      ]},
+      {title:"Financial Reports", items:[
+        {d:"ok", t:"Depreciation Schedule Report"},
+        {d:"ok", t:"Budget vs Actual"},
+        {d:"new", t:"Asset Value by Category/Location"},
+      ]},
+      {title:"Compliance Reports", items:[
+        {d:"fix", t:"Audit Trail Report — ganti nama dari 'Audit Reports'"},
+        {d:"new", t:"License Compliance Report"},
+        {d:"new", t:"Warranty Expiry Report"},
+      ]},
+      {title:"Scheduled Reports", items:[
+        {d:"new", t:"Report Schedule — kirim otomatis via email per periode"},
+      ]}
+    ],
+    note:{type:"warn", text:"'Custom Reports' dihapus dari menu — ia adalah fitur (builder) di dalam setiap report page, bukan item navigasi. 'Operational Reports' terlalu umum, diganti nama spesifik."}
+  },
+  {
+    num:"9", title:"Master Data", tag:"new", tagLabel:"Baru (Dipecah)",
+    groups:[
+      {title:"Organization", items:[
+        {d:"ok", t:"Companies / Entities"},
+        {d:"ok", t:"Departments"},
+        {d:"ok", t:"Branches / Sites"},
+        {d:"ok", t:"Locations"},
+        {d:"ok", t:"Cost Centers"},
+      ]},
+      {title:"Asset Configuration", items:[
+        {d:"ok", t:"Categories"},
+        {d:"ok", t:"Types"},
+        {d:"ok", t:"Brands"},
+        {d:"ok", t:"Models"},
+        {d:"ok", t:"Asset Statuses"},
+        {d:"new", t:"Depreciation Methods — per kategori aset"},
+      ]},
+      {title:"Procurement Configuration", items:[
+        {d:"ok", t:"Vendors"},
+        {d:"ok", t:"Vendor Types"},
+        {d:"ok", t:"Unit of Measure (UoM)"},
+        {d:"ok", t:"Payment Terms"},
+        {d:"ok", t:"Tax Configuration"},
+      ]},
+      {title:"Maintenance Configuration", items:[
+        {d:"ok", t:"Schedule Types"},
+        {d:"ok", t:"Maintenance Types"},
+        {d:"new", t:"Work Order Priorities"},
+        {d:"new", t:"Technician / Vendor Skill Map"},
+      ]},
+      {title:"Inventory Configuration", items:[
+        {d:"new", t:"Parts Categories"},
+        {d:"new", t:"UoM for Inventory"},
+        {d:"new", t:"Reorder Rules — min/max per parts/warehouse"},
+      ]},
+      {title:"License & Contract Config", items:[
+        {d:"ok", t:"License Types"},
+        {d:"ok", t:"License Metrics"},
+        {d:"new", t:"Contract Types"},
+      ]}
+    ],
+    note:{type:"info", text:"Master Data HARUS dipisah dari Administration. Ini data operasional, bukan system settings. Admin operasional perlu akses ini tanpa masuk ke area sistem."}
+  },
+  {
+    num:"10", title:"Administration", tag:"revised", tagLabel:"Dipersempit",
+    groups:[
+      {title:"User Management", items:[
+        {d:"ok", t:"Users"},
+        {d:"ok", t:"Roles"},
+        {d:"ok", t:"Permissions"},
+        {d:"new", t:"User Activity Log — siapa melakukan apa"},
+      ]},
+      {title:"Workflow Configuration", items:[
+        {d:"ok", t:"Approval Settings"},
+        {d:"ok", t:"Notification Settings"},
+        {d:"new", t:"Notification Templates — template email/in-app per event"},
+      ]},
+      {title:"System Settings", items:[
+        {d:"ok", t:"Application Settings"},
+        {d:"ok", t:"Email Settings (SMTP)"},
+        {d:"ok", t:"Document Numbering"},
+        {d:"new", t:"Integration Settings — API keys, webhook, ERP connector"},
+        {d:"ok", t:"Audit Logs"},
+      ]}
+    ],
+    note:{type:"ok", text:"Administration sekarang hanya berisi hal-hal yang memang domain IT/Super Admin. Master Data operasional sudah dipindah ke modul sendiri."}
+  },
+];
+
+function render(){
+  const el=document.getElementById('mods');
+  data.forEach((m,i)=>{
+    const div=document.createElement('div');
+    div.className='mod';
+    const tagClass=m.tag==='ok'?'tag-ok':m.tag==='new'?'tag-new':'tag-revised';
+    let groupsHtml=m.groups.map(g=>`
+      <div class="group">
+        <div class="g-title">${g.title}</div>
+        <div class="g-items">
+          ${g.items.map(it=>`<div class="gi"><div class="dot dot-${it.d}"></div><span>${it.t}</span></div>`).join('')}
+        </div>
+      </div>`).join('');
+    const noteClass=m.note?m.note.type:'info';
+    const noteHtml=m.note?`<div class="note ${noteClass}" style="margin-top:10px">${m.note.text}</div>`:'';
+    div.innerHTML=`
+      <div class="mod-header" onclick="toggle(this)">
+        <span class="mod-num">${m.num}.</span>
+        <span class="mod-title">${m.title}</span>
+        <span class="mod-tag ${tagClass}">${m.tagLabel}</span>
+        <span class="chev">▶</span>
+      </div>
+      <div class="mod-body">
+        <div class="cols">${groupsHtml}</div>
+        ${noteHtml}
+      </div>`;
+    el.appendChild(div);
+  });
+}
+function toggle(header){
+  const body=header.nextElementSibling;
+  const chev=header.querySelector('.chev');
+  const isOpen=body.classList.contains('open');
+  body.classList.toggle('open',!isOpen);
+  chev.classList.toggle('open',!isOpen);
+}
+render();
+</script>
