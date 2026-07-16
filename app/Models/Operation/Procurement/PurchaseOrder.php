@@ -2,12 +2,15 @@
 
 namespace App\Models\Operation\Procurement;
 
-use App\Models\Administration\Organization\Department;
-use App\Models\Administration\Procurement\Vendor;
-use App\Models\Operation\AssetOperation\PurchaseRequest;
-use App\Models\Administration\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+
+use App\Models\Administration\User;
+use App\Models\Administration\Organization\Branch;
+use App\Models\Administration\Organization\Department;
+use App\Models\Administration\Procurement\Vendor;
+use App\Models\Administration\Procurement\PaymentTerm;
+use App\Models\Operation\AssetOperation\PurchaseRequest;
 
 class PurchaseOrder extends Model
 {
@@ -34,36 +37,101 @@ class PurchaseOrder extends Model
         'approved_at',
     ];
 
-    public function items()
-    {
-        return $this->hasMany(PurchaseOrderItem::class);
-    }
+    /*
+    |--------------------------------------------------------------------------
+    | HEADER RELATION
+    |--------------------------------------------------------------------------
+    */
 
-    public function logs()
+    public function purchaseRequest()
     {
-        return $this->hasMany(PurchaseOrderLog::class);
+        return $this->belongsTo(
+            PurchaseRequest::class,
+            'purchase_request_id'
+        );
     }
 
     public function vendor()
     {
-        return $this->belongsTo(Vendor::class);
-    }
-
-    public function purchaseRequest()
-    {
-        return $this->belongsTo(PurchaseRequest::class);
+        return $this->belongsTo(
+            Vendor::class,
+            'vendor_id'
+        );
     }
 
     public function department()
     {
-        return $this->belongsTo(Department::class);
+        return $this->belongsTo(
+            Department::class,
+            'department_id'
+        );
     }
+
+    public function branch()
+    {
+        return $this->belongsTo(
+            Branch::class,
+            'branch_id'
+        );
+    }
+
+    public function paymentTerm()
+    {
+        return $this->belongsTo(
+            PaymentTerm::class,
+            'payment_term_id'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | USER RELATION
+    |--------------------------------------------------------------------------
+    */
 
     public function user()
     {
         return $this->belongsTo(
             User::class,
-            'user_id'
+            'created_by'
+        );
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(
+            User::class,
+            'created_by'
+        );
+    }
+
+    public function approvedBy()
+    {
+        return $this->belongsTo(
+            User::class,
+            'approved_by'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | DETAIL RELATION
+    |--------------------------------------------------------------------------
+    */
+
+    public function items()
+    {
+        return $this->hasMany(
+            PurchaseOrderItem::class,
+            'purchase_order_id'
+        );
+    }
+
+    public function logs()
+    {
+        return $this->hasMany(
+            PurchaseOrderLog::class,
+            'purchase_order_id'
         );
     }
 }

@@ -117,6 +117,22 @@ Route::middleware('auth:sanctum')->group(
             [PurchaseRequestController::class, 'manualApprove']
         );
 
-        Route::apiResource('opt_purchase_order', PurchaseOrderController::class);
+        // Route::apiResource('opt_purchase_order', PurchaseOrderController::class);
+
+        Route::get('opt_purchase_order', [PurchaseOrderController::class, 'index']);
+        Route::get(
+            'opt_purchase_order/{id}/print',
+            [PurchaseOrderController::class, 'printPdf']
+        );
+
+        Route::post(
+            'opt_purchase_order/{id}/send',
+            [PurchaseOrderController::class, 'send']
+        );
+
+        Route::get(
+            'opt_purchase_order/{id}/edit',
+            [PurchaseOrderController::class, 'edit']
+        );
     }
 );
