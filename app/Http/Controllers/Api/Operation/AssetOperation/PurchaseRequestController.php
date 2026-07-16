@@ -14,12 +14,16 @@ use App\Services\Operation\PurchaseRequestService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\Administration\User;
+use App\Services\Operation\GeneratePurchaseOrderService;
+use App\Services\Operation\PurchaseOrderService;
 
 class PurchaseRequestController extends Controller
 {
-    public function __construct(private readonly PurchaseRequestService $purchaseRequestService)
-    {
-    }
+    public function __construct(
+        private readonly PurchaseRequestService $purchaseRequestService,
+        private readonly GeneratePurchaseOrderService $generatePurchaseOrderService,
+        private readonly PurchaseOrderService $purchaseOrderService
+    ) {}
 
     public function store(StorePurchaseRequestRequest $request)
     {
@@ -125,14 +129,24 @@ class PurchaseRequestController extends Controller
         $entries = $request->entries ?? 10;
         $search = $request->search ?? '';
 
-        $query = PurchaseRequest::with(['user', 'department']);
+        $query = PurchaseRequest::with([
+            'user',
+            'department'
+        ]);
 
         if ($search) {
-            $query->where('request_number', 'like', "%{$search}%")
-                ->orWhere('department', 'like', "%{$search}%");
+            $query->where(function ($q) use ($search) {
+                $q->where('request_number', 'ilike', "%{$search}%")
+                    ->orWhereHas('department', function ($dept) use ($search) {
+                        $dept->where('name', 'ilike', "%{$search}%");
+                    });
+            });
         }
 
-        return response()->json(['success' => true, 'data' => $query->latest()->paginate($entries)]);
+        return response()->json([
+            'success' => true,
+            'data' => $query->latest()->paginate($entries)
+        ]);
     }
 
     // ... fungsi store() tetap sama seperti sebelumnya ...
@@ -309,6 +323,17 @@ class PurchaseRequestController extends Controller
 
         $pr->status = 'APPROVED';
         $pr->save();
+        $this->generatePurchaseOrderService->generateFromPR($pr);
+
+        if (
+            $pr->items()
+                ->where('need_to_issue_po', true)
+                ->whereNotNull('vendor_id')
+                ->exists()
+        ) {
+            $pr->status = 'PO_CREATED';
+            $pr->save();
+        }
 
         return response()->json([
             'success' => true,

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Administration\AppSettingController;
 use App\Http\Controllers\Api\Administration\BackupController;
+use App\Http\Controllers\Api\Operation\Procurement\PurchaseOrderController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Administration\UserController;
 use App\Http\Controllers\Api\Administration\RolesController;
@@ -115,5 +116,7 @@ Route::middleware('auth:sanctum')->group(
             'purchase-request/{id}/manual-approve',
             [PurchaseRequestController::class, 'manualApprove']
         );
+
+        Route::apiResource('opt_purchase_order', PurchaseOrderController::class);
     }
 );

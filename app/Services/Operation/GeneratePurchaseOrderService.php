@@ -1,16 +1,17 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Operation;
 
 use App\Models\Operation\Procurement\PurchaseOrder;
 use App\Models\Operation\Procurement\PurchaseOrderItem;
 use App\Models\Operation\Procurement\PurchaseOrderLog;
+use App\Models\Operation\AssetOperation\PurchaseRequest;
 use App\Helpers\DocNumberHelper;
 use Illuminate\Support\Facades\DB;
 
 class GeneratePurchaseOrderService
 {
-    public function generate($pr)
+    public function generateFromPR(PurchaseRequest $pr)
     {
         $items = $pr->items
             ->where('need_to_issue_po', true)

@@ -2,6 +2,9 @@
 
 namespace App\Models\Operation\Procurement;
 
+use App\Models\Administration\Organization\Branch;
+use App\Models\Administration\Procurement\Uom;
+use App\Models\Operation\AssetOperation\PurchaseRequestItem;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -27,9 +30,24 @@ class PurchaseOrderItem extends Model
 
     public function purchaseOrder()
     {
+        return $this->belongsTo(PurchaseOrder::class);
+    }
+
+    public function purchaseRequestItem()
+    {
+        return $this->belongsTo(PurchaseRequestItem::class);
+    }
+
+    public function uom()
+    {
+        return $this->belongsTo(Uom::class);
+    }
+
+    public function deliveryBranch()
+    {
         return $this->belongsTo(
-            PurchaseOrder::class,
-            'purchase_order_id'
+            Branch::class,
+            'delivery_id'
         );
     }
 }
