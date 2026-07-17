@@ -99,10 +99,8 @@ Route::middleware('auth:sanctum')->group(
         Route::put('opt_purchase_request/{id}', [PurchaseRequestController::class, 'update']); // <-- INI YANG MENYIMPAN EDIT
         Route::delete('opt_purchase_request/{id}', [PurchaseRequestController::class, 'destroy']); // <-- INI UNTUK HAPUS
         Route::get('opt_purchase_request/{id}/print', [PurchaseRequestController::class, 'printPdf']); // <-- INI UNTUK CETAK PDF
-        Route::post(
-            'opt_purchase_request/{id}/mark-approved',
-            [PurchaseRequestController::class, 'markApproved']
-        );
+        Route::post('opt_purchase_request/{id}/mark-approved', [PurchaseRequestController::class, 'markApproved']);
+        Route::post('purchase-request/{id}/manual-approve', [PurchaseRequestController::class, 'manualApprove']);
         // -- Transfer Request
         Route::post('opt_transfer_request', [TransferRequestController::class, 'store']);
         Route::get('opt_transfer_request', [TransferRequestController::class, 'index']);
@@ -111,28 +109,11 @@ Route::middleware('auth:sanctum')->group(
         Route::get('workflow_approval', [WorkflowApprovalController::class, 'index']);
         Route::post('workflow_approval/{id}/approve', [WorkflowApprovalController::class, 'approve']);
         Route::post('workflow_approval/{id}/reject', [WorkflowApprovalController::class, 'reject']);
-
-        Route::post(
-            'purchase-request/{id}/manual-approve',
-            [PurchaseRequestController::class, 'manualApprove']
-        );
-
-        // Route::apiResource('opt_purchase_order', PurchaseOrderController::class);
-
-        Route::get('opt_purchase_order', [PurchaseOrderController::class, 'index']);
-        Route::get(
-            'opt_purchase_order/{id}/print',
-            [PurchaseOrderController::class, 'printPdf']
-        );
-
-        Route::post(
-            'opt_purchase_order/{id}/send',
-            [PurchaseOrderController::class, 'send']
-        );
-
-        Route::get(
-            'opt_purchase_order/{id}/edit',
-            [PurchaseOrderController::class, 'edit']
-        );
+        ### Procurement PO
+        Route::apiResource('opt_purchase_order', PurchaseOrderController::class);
+        Route::get('opt_purchase_order/{id}/edit', [PurchaseOrderController::class, 'edit']);
+        Route::get('opt_purchase_order/create', [PurchaseOrderController::class, 'create']);
+        Route::get('opt_purchase_order/{id}/print', [PurchaseOrderController::class, 'printPdf']);
+        Route::post('opt_purchase_order/{id}/send', [PurchaseOrderController::class, 'send']);
     }
 );
