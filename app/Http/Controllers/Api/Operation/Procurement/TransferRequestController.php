@@ -1,18 +1,16 @@
 <?php
 
-namespace App\Http\Controllers\Api\Operation\AssetOperation;
+namespace App\Http\Controllers\Api\Operation\Procurement;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTransferRequestRequest;
-use App\Models\Operation\AssetOperation\TransferRequest;
+use App\Models\Operation\Procurement\TransferRequest;
 use App\Services\Operation\TransferRequestService;
 use Illuminate\Http\Request;
 
 class TransferRequestController extends Controller
 {
-    public function __construct(private readonly TransferRequestService $transferRequestService)
-    {
-    }
+    public function __construct(private readonly TransferRequestService $transferRequestService) {}
 
     public function index(Request $request)
     {

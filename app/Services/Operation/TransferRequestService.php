@@ -3,7 +3,7 @@
 namespace App\Services\Operation;
 
 use App\Helpers\DocNumberHelper;
-use App\Models\Operation\AssetOperation\TransferRequest;
+use App\Models\Operation\Procurement\TransferRequest;
 
 class TransferRequestService
 {

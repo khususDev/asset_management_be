@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Operation\AssetOperation;
+namespace App\Models\Operation\Procurement;
 
 use App\Models\Administration\User;
 use App\Models\Operation\Procurement\PurchaseOrder;

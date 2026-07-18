@@ -34,8 +34,9 @@ use App\Http\Controllers\Api\Administration\System\NotificationSettingController
 use App\Http\Controllers\Api\Administration\Workflow\ApprovalSettingController;
 use App\Http\Controllers\Api\Approvals\WorkflowApprovalController;
 use App\Http\Controllers\Api\Operation\AssetOperation\AssetRequestController;
-use App\Http\Controllers\Api\Operation\AssetOperation\PurchaseRequestController;
-use App\Http\Controllers\Api\Operation\AssetOperation\TransferRequestController;
+use App\Http\Controllers\Api\Operation\Procurement\GoodsReceiptController;
+use App\Http\Controllers\Api\Operation\Procurement\PurchaseRequestController;
+use App\Http\Controllers\Api\Operation\Procurement\TransferRequestController;
 
 Route::post('login', [AuthController::class, 'login']);
 
@@ -115,5 +116,10 @@ Route::middleware('auth:sanctum')->group(
         Route::get('opt_purchase_order/create', [PurchaseOrderController::class, 'create']);
         Route::get('opt_purchase_order/{id}/print', [PurchaseOrderController::class, 'printPdf']);
         Route::post('opt_purchase_order/{id}/send', [PurchaseOrderController::class, 'send']);
+        ### Goods Receipt
+        Route::post('opt_goods_receipt/{id}/post', [GoodsReceiptController::class, 'post']);
+        Route::get('opt_goods_receipt/{id}/print', [GoodsReceiptController::class, 'print']);
+        Route::get('opt_goods_receipt/get-po', [GoodsReceiptController::class, 'getPurchaseOrders']);
+        Route::apiResource('opt_goods_receipt', GoodsReceiptController::class);
     }
 );

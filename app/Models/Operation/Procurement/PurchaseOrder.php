@@ -10,7 +10,7 @@ use App\Models\Administration\Organization\Branch;
 use App\Models\Administration\Organization\Department;
 use App\Models\Administration\Procurement\Vendor;
 use App\Models\Administration\Procurement\PaymentTerm;
-use App\Models\Operation\AssetOperation\PurchaseRequest;
+use App\Models\Operation\Procurement\PurchaseRequest;
 
 class PurchaseOrder extends Model
 {
@@ -132,6 +132,13 @@ class PurchaseOrder extends Model
         return $this->hasMany(
             PurchaseOrderLog::class,
             'purchase_order_id'
+        );
+    }
+
+    public function goodsReceipts()
+    {
+        return $this->hasMany(
+            GoodsReceipt::class
         );
     }
 }

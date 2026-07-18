@@ -5,7 +5,7 @@ namespace App\Services\Operation;
 use App\Models\Operation\Procurement\PurchaseOrder;
 use App\Models\Operation\Procurement\PurchaseOrderItem;
 use App\Models\Operation\Procurement\PurchaseOrderLog;
-use App\Models\Operation\AssetOperation\PurchaseRequest;
+use App\Models\Operation\Procurement\PurchaseRequest;
 use App\Helpers\DocNumberHelper;
 use Illuminate\Support\Facades\DB;
 

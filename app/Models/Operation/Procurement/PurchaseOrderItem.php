@@ -4,7 +4,7 @@ namespace App\Models\Operation\Procurement;
 
 use App\Models\Administration\Organization\Branch;
 use App\Models\Administration\Procurement\Uom;
-use App\Models\Operation\AssetOperation\PurchaseRequestItem;
+use App\Models\Operation\Procurement\PurchaseRequestItem;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -48,6 +48,13 @@ class PurchaseOrderItem extends Model
         return $this->belongsTo(
             Branch::class,
             'delivery_id'
+        );
+    }
+
+    public function goodsReceiptItems()
+    {
+        return $this->hasMany(
+            GoodsReceiptItem::class
         );
     }
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api\Operation\AssetOperation;
+namespace App\Http\Controllers\Api\Operation\Procurement;
 
 use App\Helpers\DocNumberHelper;
 use App\Http\Controllers\Controller;
@@ -8,8 +8,8 @@ use App\Http\Requests\StorePurchaseRequestRequest;
 use App\Http\Requests\UpdatePurchaseRequestRequest;
 use App\Models\Administration\Organization\Department;
 use App\Models\Approvals\WorkflowApproval;
-use App\Models\Operation\AssetOperation\PurchaseRequest;
-use App\Models\Operation\AssetOperation\PurchaseRequestItem;
+use App\Models\Operation\Procurement\PurchaseRequest;
+use App\Models\Operation\Procurement\PurchaseRequestItem;
 use App\Services\Operation\PurchaseRequestService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -327,9 +327,9 @@ class PurchaseRequestController extends Controller
 
         if (
             $pr->items()
-                ->where('need_to_issue_po', true)
-                ->whereNotNull('vendor_id')
-                ->exists()
+            ->where('need_to_issue_po', true)
+            ->whereNotNull('vendor_id')
+            ->exists()
         ) {
             $pr->status = 'PO_CREATED';
             $pr->save();
@@ -620,6 +620,4 @@ class PurchaseRequestController extends Controller
             ], 500);
         }
     }
-
-
 }

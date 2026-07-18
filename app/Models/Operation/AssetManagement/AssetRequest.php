@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Operation\AssetOperation;
+namespace App\Models\Operation\AssetManagement;
 
 use App\Models\Administration\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
