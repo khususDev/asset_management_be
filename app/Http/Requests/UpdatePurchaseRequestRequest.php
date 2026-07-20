@@ -14,10 +14,8 @@ class UpdatePurchaseRequestRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'department' => 'required|string|max:100',
-            'approval_method' => 'required|in:SYSTEM,MANUAL',
+            'department_id' => 'required|integer|min:1',
             'purpose' => 'required|string',
-            'approval_method' => 'required|in:SYSTEM,MANUAL',
             'items' => 'required|array|min:1',
             'items.*.item_description' => 'required|string|max:255',
             'items.*.quantity' => 'required|integer|min:1',

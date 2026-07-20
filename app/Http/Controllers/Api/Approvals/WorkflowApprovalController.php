@@ -7,6 +7,7 @@ use App\Http\Requests\ApproveWorkflowRequest;
 use App\Http\Requests\RejectWorkflowRequest;
 use App\Models\Approvals\WorkflowApproval;
 use App\Services\Approval\WorkflowApprovalService;
+use App\Models\Operation\Procurement\PurchaseRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -15,57 +16,52 @@ class WorkflowApprovalController extends Controller
     public function __construct(private readonly WorkflowApprovalService $workflowApprovalService) {}
 
     public function index(Request $request)
-    {
-        $user = $request->user();
+{
+    $user = $request->user();
 
-        if (!$user) {
-            return response()->json(['success' => false, 'message' => 'User tidak terautentikasi.'], 401);
-        }
-
-        $entries = $request->entries ?? 10;
-        $search = $request->search ?? '';
-
-        // Karena workflow sekarang berbasis user langsung, 
-        // kita tidak perlu lagi mencari berdasarkan Role ID.
-        // Kita langsung filter antrean yang ditujukan untuk user yang sedang login.
-
-        $query = WorkflowApproval::with(
-            [
-                'approvable.user',
-                'approvable.items.uom',
-                'approvable.workflowApprovals.role',
-                'approvable.workflowApprovals.approver'
-            ]
-        )
-            ->where('status', 'PENDING')
-            // Ini adalah perubahan utama: Filter langsung ke user_id
-            ->where('user_id', $user->id)
-            ->whereNotExists(function ($subQuery) {
-                // Logika antrean bertingkat (Level 1 harus selesai sebelum Level 2 muncul, dst)
-                // Tetap dipertahankan agar alur approval tetap urut.
-                $subQuery->select(DB::raw(1))
-                    ->from('workflow_approval', 'wfl_sub')
-                    ->whereColumn('wfl_sub.approvable_type', 'workflow_approval.approvable_type')
-                    ->whereColumn('wfl_sub.approvable_id', 'workflow_approval.approvable_id')
-                    ->whereColumn('wfl_sub.level', '<', 'workflow_approval.level')
-                    ->where('wfl_sub.status', 'PENDING');
-            });
-
-        // Fitur Pencarian
-        if ($search) {
-            $query->whereHasMorph('approvable', [\App\Models\Operation\AssetOperation\PurchaseRequest::class], function ($q) use ($search) {
-                $q->where('request_number', 'like', "%{$search}%")
-                    ->orWhere('department', 'like', "%{$search}%");
-            });
-        }
-
-        $approvals = $query->latest()->paginate($entries);
-
-        return response()->json([
-            'success' => true,
-            'data' => $approvals
-        ]);
+    if (!$user) {
+        return response()->json(['success' => false, 'message' => 'User tidak terautentikasi.'], 401);
     }
+
+    $entries = $request->entries ?? 10;
+    $search = $request->search ?? '';
+
+    // Ambil nama tabel secara dinamis dari model WorkflowApproval
+    $tableName = (new WorkflowApproval)->getTable(); 
+
+    $query = WorkflowApproval::with([
+            'approvable.user',
+            'approvable.items.uom',
+            'approvable.workflowApprovals.role',
+            'approvable.workflowApprovals.approver',
+            'approvable.department'
+    ])
+    ->where('status', 'PENDING')
+    ->where('user_id', $user->id)
+    ->whereNotExists(function ($subQuery) use ($tableName) {
+        // Menggunakan nama tabel dinamis
+        $subQuery->select(DB::raw(1))
+            ->from($tableName, 'wfl_sub')
+            ->whereColumn('wfl_sub.approvable_type', "{$tableName}.approvable_type")
+            ->whereColumn('wfl_sub.approvable_id', "{$tableName}.approvable_id")
+            ->whereColumn('wfl_sub.level', '<', "{$tableName}.level")
+            ->where('wfl_sub.status', 'PENDING');
+    });
+
+    // Fitur Pencarian
+    if ($search) {
+        $query->whereHasMorph('approvable', [PurchaseRequest::class], function ($q) use ($search) {
+            $q->where('request_number', 'like', "%{$search}%");
+        });
+    }
+
+    $approvals = $query->latest()->paginate($entries);
+
+    return response()->json([
+        'success' => true,
+        'data' => $approvals
+    ]);
+}
 
     public function approve(ApproveWorkflowRequest $request, $id)
     {

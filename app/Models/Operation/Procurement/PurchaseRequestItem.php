@@ -27,7 +27,7 @@ class PurchaseRequestItem extends Model
         'price_include_ppn',
         'payment_term_id',
         'expected_arrival_date',
-        'delivery_id',
+        'delivery_branch_id',
         'item_purpose'
     ];
 
@@ -51,7 +51,7 @@ class PurchaseRequestItem extends Model
 
     public function deliveryBranch()
     {
-        return $this->belongsTo(\App\Models\Administration\Organization\Branch::class, 'delivery_id');
+        return $this->belongsTo(\App\Models\Administration\Organization\Branch::class, 'delivery_branch_id');
     }
 
     public function getActivitylogOptions(): LogOptions
