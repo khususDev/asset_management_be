@@ -112,6 +112,7 @@ Route::middleware('auth:sanctum')->group(
         Route::post('workflow_approval/{id}/reject', [WorkflowApprovalController::class, 'reject']);
         ### Procurement PO
         Route::apiResource('opt_purchase_order', PurchaseOrderController::class);
+        Route::get('opt_purchase_order_masters', [PurchaseOrderController::class, 'getFormMasters']);
         Route::get('opt_purchase_order/{id}/edit', [PurchaseOrderController::class, 'edit']);
         Route::get('opt_purchase_order/create', [PurchaseOrderController::class, 'create']);
         Route::get('opt_purchase_order/{id}/print', [PurchaseOrderController::class, 'printPdf']);

@@ -38,7 +38,7 @@ class StorePurchaseRequestRequest extends FormRequest
                 'required_if:items.*.need_to_issue_po,1'
             ],
 
-            'items.*.delivery_id' => [
+            'items.*.delivery_branch_id' => [
                 'nullable',
                 'required_if:items.*.need_to_issue_po,1'
             ],
@@ -74,9 +74,9 @@ class StorePurchaseRequestRequest extends FormRequest
                         );
                     }
 
-                    if (empty($item['delivery_id'])) {
+                    if (empty($item['delivery_branch_id'])) {
                         $validator->errors()->add(
-                            "items.$index.delivery_id",
+                            "items.$index.delivery_branch_id",
                             "Delivery Branch wajib diisi jika Need PO dicentang."
                         );
                     }

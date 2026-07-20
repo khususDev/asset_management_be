@@ -68,7 +68,7 @@ class PurchaseRequestController extends Controller
                     'price_include_ppn' => $item['price_include_ppn'] ?? false,
                     'payment_term_id' => $item['payment_term_id'] ?? null,
                     'expected_arrival_date' => $item['expected_arrival_date'] ?? null,
-                    'delivery_id' => $item['delivery_id'] ?? null,
+                    'delivery_branch_id' => $item['delivery_branch_id'] ?? null,
                     'item_purpose' => $item['item_purpose'] ?? null,
                 ]);
             }
@@ -152,6 +152,7 @@ class PurchaseRequestController extends Controller
 
             $pr = PurchaseRequest::with([
                 'user',
+                'department',
                 'items.uom',
                 'items.vendor',
                 'items.paymentTerm',
@@ -380,10 +381,34 @@ public function destroy($id)
                 .stamp-rejected { color: #dc3545; border: 2px solid #dc3545; background-color: rgba(220, 53, 69, 0.03); }
 
                 @media print {
-                    @page { size: A4; margin: 1cm; }
-                    body { margin: 0; }
-                    .no-print { display: none; }
-                }
+                * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    @page {
+        size: A4 portrait;
+        margin: 10mm;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+    }
+
+    /* Memastikan watermark tidak menutupi atau menggeser konten lain */
+    .watermark {
+        position: absolute; /* Ubah dari fixed */
+        top: 50%;
+        left: 50%;
+        z-index: -1; /* Pastikan di belakang */
+    }
+
+    /* Pastikan header dan footer tidak meluap */
+    .header-table, .main-table, .footer-table {
+        width: 100% !important;
+        table-layout: fixed; /* Mencegah tabel melebar keluar kertas */
+    }
+}
             </style>
         </head>
         <body>
@@ -451,9 +476,16 @@ public function destroy($id)
                                     <td>' . ($item->pic_contact ?? '-') . '</td>
                                 </tr>
                                 <tr>
-                                    <td style="color: #555;">URL</td>
-                                    <td><a href="' . ($item->url ?? '#') . '" target="_blank" style="color: blue; text-decoration: none;">' . ($item->url ?? '-') . '</a></td>
-                                </tr>
+    <td style="color: #555;">URL</td>
+    <td style="word-break: break-all; max-width: 150px; vertical-align: top;">
+        <!-- Hapus max-height, gunakan line-clamp dan line-height -->
+        <div style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; font-size: 11px;">
+            <a href="' . ($item->url ?? '#') . '" target="_blank" style="color: blue; text-decoration: none;">
+                ' . ($item->url ?? '-') . '
+            </a>
+        </div>
+    </td>
+</tr>
                                 <tr>
                                     <td style="color: #555;">Price Include PPN</td>
                                     <td class="bold ' . ($item->price_include_ppn ? '' : 'bg-pink') . '">' . ($item->price_include_ppn ? 'YES' : 'NO') . '</td>
@@ -468,7 +500,7 @@ public function destroy($id)
                                 </tr>
                                 <tr>
                                     <td style="color: #555;">Delivery Address</td>
-                                    <td>' . ($pr->deliveryBranch->name ?? '-') . '</td>
+                                    <td>' . ($item->deliveryBranch ? ($item->deliveryBranch->code . ' | ' . $item->deliveryBranch->name) : '-') . '</td>
                                 </tr>
                                 <tr>
                                     <td style="color: #555;">Purpose per Item</td>
@@ -478,7 +510,7 @@ public function destroy($id)
                         </td>
                         <td class="text-center bold" style="vertical-align: middle;">' . ($item->quantity ?? 0) . '</td>
                         <td class="text-center" style="vertical-align: middle;">' . ($item->uom->name ?? 'pcs') . '</td>
-                        <td class="text-right" style="vertical-align: middle;">' . number_format((float)($item->unit_price ?? 0), 0, ',', '.') . '</td>
+                        <td class="text-right bold" style="vertical-align: middle;">' . number_format((float)($item->unit_price ?? 0), 0, ',', '.') . '</td>
                         <td class="text-right bold" style="vertical-align: middle;">' . number_format((float)($item->total_amount ?? 0), 0, ',', '.') . '</td>
                     </tr>';
         }
