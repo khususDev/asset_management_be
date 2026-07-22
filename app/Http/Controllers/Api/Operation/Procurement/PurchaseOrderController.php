@@ -92,7 +92,7 @@ class PurchaseOrderController extends Controller
             foreach ($request->items as $item) {
                 $lineTotal = $item['quantity'] * $item['unit_price'];
                 $subtotal += $lineTotal;
-                
+
                 // Asumsi PPN 11% jika PKP
                 if ($item['is_pkp']) {
                     $ppn += ($lineTotal * 0.11);
@@ -102,7 +102,7 @@ class PurchaseOrderController extends Controller
             // 3. Simpan PO (Manual PO = purchase_request_id adalah null)
             $po = PurchaseOrder::create([
                 'po_number' => 'PO-' . date('YmdHis'), // Contoh generate sederhana
-                'purchase_request_id' => null, 
+                'purchase_request_id' => null,
                 'vendor_id' => $request->vendor_id,
                 'department_id' => $request->department_id,
                 'branch_id' => $request->branch_id,
@@ -219,34 +219,34 @@ class PurchaseOrderController extends Controller
 
                 $po->items()->create([
                     'purchase_request_item_id' =>
-                    $item['purchase_request_item_id'] ?? null,
+                        $item['purchase_request_item_id'] ?? null,
 
                     'item_description' =>
-                    $item['item_description'],
+                        $item['item_description'],
 
                     'quantity' =>
-                    $item['quantity'],
+                        $item['quantity'],
 
                     'uom_id' =>
-                    $item['uom_id'],
+                        $item['uom_id'],
 
                     'unit_price' =>
-                    $item['unit_price'],
+                        $item['unit_price'],
 
                     'total_amount' =>
-                    $amount,
+                        $amount,
 
                     'is_pkp' =>
-                    $item['is_pkp'],
+                        $item['is_pkp'],
 
                     'price_include_ppn' =>
-                    $item['price_include_ppn'],
+                        $item['price_include_ppn'],
 
                     'item_purpose' =>
-                    $item['item_purpose'],
+                        $item['item_purpose'],
 
                     'expected_arrival_date' =>
-                    $item['expected_arrival_date'],
+                        $item['expected_arrival_date'],
                 ]);
             }
 
