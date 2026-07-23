@@ -430,40 +430,45 @@ class GoodsReceiptController extends Controller
 
         foreach ($purchaseOrders as $po) {
 
-            foreach ($po->items as $item) {
+    foreach ($po->items as $item) {
 
-                $received = 0;
+        $received = 0;
 
-                foreach ($po->goodsReceipts as $receipt) {
+        foreach ($po->goodsReceipts as $receipt) {
 
-                    foreach ($receipt->items as $grItem) {
+            foreach ($receipt->items as $grItem) {
 
-                        if (
-                            $grItem->purchase_order_item_id ==
-                            $item->id
-                        ) {
-
-                            $received +=
-                                $grItem->accepted_qty;
-                        }
-                    }
+                if ($grItem->purchase_order_item_id == $item->id) {
+                    $received += $grItem->accepted_qty;
                 }
-
-                $item->received_qty =
-                    $received;
-
-                $item->outstanding_qty =
-                    max(
-                        0,
-                        $item->quantity -
-                            $received
-                    );
             }
         }
 
-        return response()->json([
-            'success' => true,
-            'data' => $purchaseOrders
-        ]);
+        $item->received_qty = $received;
+
+        $item->outstanding_qty = max(
+            0,
+            $item->quantity - $received
+        );
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Hanya tampilkan PO yang masih memiliki item outstanding
+|--------------------------------------------------------------------------
+*/
+$purchaseOrders = $purchaseOrders->filter(function ($po) {
+
+    return $po->items->contains(function ($item) {
+        return $item->outstanding_qty > 0;
+    });
+
+})->values();
+
+return response()->json([
+    'success' => true,
+    'data' => $purchaseOrders
+]);
     }
 }

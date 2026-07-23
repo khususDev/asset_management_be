@@ -70,67 +70,83 @@ class PurchaseOrderController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
-    {
-        // 1. Validasi
-        $validated = $request->validate([
-            'vendor_id' => 'required',
-            'department_id' => 'required',
-            'branch_id' => 'required',
-            'payment_term_id' => 'required',
-            'order_date' => 'required|date',
-            'items' => 'required|array|min:1',
-            'items.*.item_description' => 'required|string',
-            'items.*.quantity' => 'required|numeric|min:1',
-            'items.*.unit_price' => 'required|numeric|min:0',
+{
+    // 1. Validasi
+    $validated = $request->validate([
+        'vendor_id' => 'required',
+        'department_id' => 'required',
+        'branch_id' => 'required',
+        'payment_term_id' => 'required',
+        'order_date' => 'required|date',
+        // Tambahkan validasi is_pkp global
+        'is_pkp' => 'nullable|boolean', 
+        'items' => 'required|array|min:1',
+        'items.*.item_description' => 'required|string',
+        'items.*.quantity' => 'required|numeric|min:1',
+        // Tambahkan uom_id karena dipakai saat insert item
+        'items.*.uom_id' => 'required', 
+        'items.*.unit_price' => 'required|numeric|min:0',
+    ]);
+
+    DB::transaction(function () use ($request) {
+        // 2. Hitung Total
+        $subtotal = 0;
+        $ppn = 0;
+
+        // Ambil nilai is_pkp dari luar array items (global)
+        // Kita jadikan boolean agar mudah dikalkulasi
+        $isGlobalPkp = $request->boolean('is_pkp');
+
+        foreach ($request->items as $item) {
+            $lineTotal = $item['quantity'] * $item['unit_price'];
+            $subtotal += $lineTotal;
+
+            // Cek jika ada is_pkp khusus di item, jika tidak, gunakan global is_pkp
+            $itemIsPkp = isset($item['is_pkp']) ? (bool) $item['is_pkp'] : $isGlobalPkp;
+
+            // Asumsi PPN 11% jika PKP
+            if ($itemIsPkp) {
+                $ppn += ($lineTotal * 0.11);
+            }
+        }
+
+        // 3. Simpan PO (Manual PO = purchase_request_id adalah null)
+        $po = PurchaseOrder::create([
+            'po_number' => 'PO-' . date('YmdHis'), // Contoh generate sederhana
+            'purchase_request_id' => null,
+            'vendor_id' => $request->vendor_id,
+            'department_id' => $request->department_id,
+            'branch_id' => $request->branch_id,
+            'payment_term_id' => $request->payment_term_id,
+            'order_date' => $request->order_date,
+            // Opsional: Tangkap juga expected_arrival_date dari Vue jika dibutuhkan tabel PO
+            'expected_delivery_date' => $request->expected_arrival_date ?? null, 
+            'subtotal' => $subtotal,
+            'ppn_amount' => $ppn,
+            'grand_total' => $subtotal + $ppn,
+            'status' => 'DRAFT',
+            'created_by' => auth()->id(),
         ]);
 
-        DB::transaction(function () use ($request) {
-            // 2. Hitung Total
-            $subtotal = 0;
-            $ppn = 0;
+        // 4. Simpan Item
+        foreach ($request->items as $item) {
+            // Gunakan logika pengecekan yang sama untuk insert ke database
+            $itemIsPkp = isset($item['is_pkp']) ? (bool) $item['is_pkp'] : $isGlobalPkp;
 
-            foreach ($request->items as $item) {
-                $lineTotal = $item['quantity'] * $item['unit_price'];
-                $subtotal += $lineTotal;
-
-                // Asumsi PPN 11% jika PKP
-                if ($item['is_pkp']) {
-                    $ppn += ($lineTotal * 0.11);
-                }
-            }
-
-            // 3. Simpan PO (Manual PO = purchase_request_id adalah null)
-            $po = PurchaseOrder::create([
-                'po_number' => 'PO-' . date('YmdHis'), // Contoh generate sederhana
-                'purchase_request_id' => null,
-                'vendor_id' => $request->vendor_id,
-                'department_id' => $request->department_id,
-                'branch_id' => $request->branch_id,
-                'payment_term_id' => $request->payment_term_id,
-                'order_date' => $request->order_date,
-                'subtotal' => $subtotal,
-                'ppn_amount' => $ppn,
-                'grand_total' => $subtotal + $ppn,
-                'status' => 'DRAFT',
-                'created_by' => auth()->id(),
+            $po->items()->create([
+                'purchase_request_item_id' => null, // Manual
+                'item_description' => $item['item_description'],
+                'quantity' => $item['quantity'],
+                'uom_id' => $item['uom_id'],
+                'unit_price' => $item['unit_price'],
+                'total_amount' => $item['quantity'] * $item['unit_price'],
+                'is_pkp' => $itemIsPkp, // Simpan boolean ke table item
             ]);
+        }
+    });
 
-            // 4. Simpan Item
-            foreach ($request->items as $item) {
-                $po->items()->create([
-                    'purchase_request_item_id' => null, // Manual
-                    'item_description' => $item['item_description'],
-                    'quantity' => $item['quantity'],
-                    'uom_id' => $item['uom_id'],
-                    'unit_price' => $item['unit_price'],
-                    'total_amount' => $item['quantity'] * $item['unit_price'],
-                    'is_pkp' => $item['is_pkp'],
-                ]);
-            }
-        });
-
-        return response()->json(['message' => 'Manual PO created successfully']);
-    }
+    return response()->json(['message' => 'Manual PO created successfully']);
+}
 
     /**
      * Display the specified resource.

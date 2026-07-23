@@ -17,8 +17,8 @@ return new class extends Migration {
 
             // relasi ke PR
             $table->foreignId('purchase_request_id')
-                ->constrained('opt_purchase_request')
-                ->cascadeOnDelete();
+                ->nullable()
+                ->constrained('opt_purchase_request');
 
             // vendor tujuan
             $table->foreignId('vendor_id')
