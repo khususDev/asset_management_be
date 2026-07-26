@@ -33,10 +33,11 @@ use App\Http\Controllers\Api\Administration\System\DocumentNumberingController;
 use App\Http\Controllers\Api\Administration\System\NotificationSettingController;
 use App\Http\Controllers\Api\Administration\Workflow\ApprovalSettingController;
 use App\Http\Controllers\Api\Approvals\WorkflowApprovalController;
-use App\Http\Controllers\Api\Operation\AssetOperation\AssetRequestController;
 use App\Http\Controllers\Api\Operation\Procurement\GoodsReceiptController;
 use App\Http\Controllers\Api\Operation\Procurement\PurchaseRequestController;
 use App\Http\Controllers\Api\Operation\Procurement\TransferRequestController;
+use App\Http\Controllers\Api\Operation\AssetManagement\AssetRegistrationController;
+use App\Http\Controllers\Api\Operation\AssetManagement\AssetRequestController;
 
 Route::post('login', [AuthController::class, 'login']);
 
@@ -122,5 +123,10 @@ Route::middleware('auth:sanctum')->group(
         Route::get('opt_goods_receipt/{id}/print', [GoodsReceiptController::class, 'print']);
         Route::get('opt_goods_receipt/get-po', [GoodsReceiptController::class, 'getPurchaseOrders']);
         Route::apiResource('opt_goods_receipt', GoodsReceiptController::class);
+        ### Asset Registration
+        Route::get('opt_asset_registration', [AssetRegistrationController::class, 'index']);
+        Route::get('opt_asset_registration/masters', [AssetRegistrationController::class, 'masters']);
+        Route::get('opt_asset_registration/{id}', [AssetRegistrationController::class, 'show']);
+        Route::put('opt_asset_registration/{id}', [AssetRegistrationController::class, 'register']);
     }
 );

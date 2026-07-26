@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use App\Models\Operation\Procurement\PurchaseRequest;
 
 class PurchaseRequestItem extends Model
 {
@@ -21,6 +22,7 @@ class PurchaseRequestItem extends Model
         'total_amount',
         'need_to_issue_po',
         'vendor_id',
+        'vendor_name',
         'is_pkp',
         'pic_contact',
         'url',
@@ -28,12 +30,10 @@ class PurchaseRequestItem extends Model
         'payment_term_id',
         'expected_arrival_date',
         'delivery_branch_id',
-        'item_purpose'
+        'item_purpose',
+        'asset_class',
     ];
 
-    // === RELASI MASTER DATA (WAJIB ADA & SINKRON DENGAN CONTROLLER) ===
-
-    // Fungsi ini yang tadi dilaporkan hilang/error oleh Laravel:
     public function uom()
     {
         return $this->belongsTo(\App\Models\Administration\Procurement\Uom::class, 'uom_id');
@@ -61,5 +61,13 @@ class PurchaseRequestItem extends Model
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->useLogName('PURCHASE REQUEST ITEM');
+    }
+
+    public function purchaseRequest()
+    {
+        return $this->belongsTo(
+            PurchaseRequest::class,
+            'purchase_request_id'
+        );
     }
 }

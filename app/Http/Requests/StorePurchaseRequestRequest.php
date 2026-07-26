@@ -22,6 +22,7 @@ class StorePurchaseRequestRequest extends FormRequest
             'items.*.item_description' => 'required',
             'items.*.quantity' => 'required|numeric|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.asset_class' => 'required|in:FIXED_ASSET,CONSUMABLE,LICENSE,SERVICE',
 
             'items.*.vendor_id' => [
                 'nullable',

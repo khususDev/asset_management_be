@@ -57,4 +57,12 @@ class PurchaseOrderItem extends Model
             GoodsReceiptItem::class
         );
     }
+
+    public function asset()
+    {
+        return $this->hasOne(
+            \App\Models\Operation\AssetManagement\Asset::class,
+            'purchase_order_item_id'
+        );
+    }
 }

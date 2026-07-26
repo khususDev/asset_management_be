@@ -43,7 +43,7 @@ class GeneratePurchaseOrderService
             $po = PurchaseOrder::create([
                 'po_number' => DocNumberHelper::generate(
                     'PO',
-                    $pr->department->code
+                    $pr->department->id
                 ),
                 'purchase_request_id' => $pr->id,
                 'vendor_id' => $vendorId,

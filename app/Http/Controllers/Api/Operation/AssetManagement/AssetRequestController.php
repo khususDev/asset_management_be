@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api\Operation\AssetOperation;
+namespace App\Http\Controllers\Api\Operation\AssetManagement;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreAssetRequestRequest;

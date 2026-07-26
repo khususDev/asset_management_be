@@ -2,30 +2,68 @@
 
 namespace App\Helpers;
 
-use App\Models\Administration\System\DocumentNumbering as SystemDocumentNumbering;
+use App\Models\Administration\System\DocumentNumbering;
+use Illuminate\Support\Facades\DB;
 
 class DocNumberHelper
 {
-    public static function generate($moduleCode, $departmentCode)
+    public static function generate($module, $departmentId = null)
     {
-        $numbering = SystemDocumentNumbering::where('module', $moduleCode)->where('department', $departmentCode)->where('is_active', true)->first();
+        return DB::transaction(function () use ($module, $departmentId) {
 
-        if (!$numbering) {
-            return $moduleCode . '-' . $departmentCode . '-' . time(); // Fallback jika format belum diatur admin
-        }
+            $numbering = DocumentNumbering::where('module', $module)
+                ->where('department', $departmentId)
+                ->where('is_active', true)
+                ->lockForUpdate()
+                ->first();
 
-        // Naikkan nomor urutan secara berkala
-        $numbering->increment('current_sequence');
-        $seq = str_pad($numbering->current_sequence, $numbering->digit_length, '0', STR_PAD_LEFT);
+            if (!$numbering) {
+                throw new \Exception("Document Numbering untuk module '{$module}' belum dikonfigurasi.");
+            }
 
-        $result = $numbering->format;
-        $result = str_replace('{PREFIX}', $numbering->prefix, $result);
-        $result = str_replace('{YYYY}', date('Y'), $result);
-        $result = str_replace('{YY}', date('y'), $result);
-        $result = str_replace('{MM}', date('m'), $result);
-        $result = str_replace('{DD}', date('d'), $result);
-        $result = str_replace('{SEQ}', $seq, $result);
+            $today = now();
 
-        return $result;
+            $currentPeriod = match ($numbering->reset_type) {
+
+                'DAILY' => $today->format('Ymd'),
+
+                'MONTHLY' => $today->format('Ym'),
+
+                'YEARLY' => $today->format('Y'),
+
+                default => null,
+            };
+
+            if (
+                $numbering->reset_type != 'NEVER' &&
+                $numbering->last_reset_period != $currentPeriod
+            ) {
+
+                $numbering->current_sequence = 0;
+                $numbering->last_reset_period = $currentPeriod;
+            }
+
+            $numbering->current_sequence++;
+
+            $numbering->save();
+
+            $seq = str_pad(
+                $numbering->current_sequence,
+                $numbering->digit_length,
+                '0',
+                STR_PAD_LEFT
+            );
+
+            $doc = $numbering->format;
+
+            $doc = str_replace('{PREFIX}', $numbering->prefix, $doc);
+            $doc = str_replace('{YYYY}', $today->format('Y'), $doc);
+            $doc = str_replace('{YY}', $today->format('y'), $doc);
+            $doc = str_replace('{MM}', $today->format('m'), $doc);
+            $doc = str_replace('{DD}', $today->format('d'), $doc);
+            $doc = str_replace('{SEQ}', $seq, $doc);
+
+            return $doc;
+        });
     }
 }

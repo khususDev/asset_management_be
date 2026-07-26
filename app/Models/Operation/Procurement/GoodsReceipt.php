@@ -18,6 +18,7 @@ class GoodsReceipt extends Model
         'received_date',
         'remarks',
         'status',
+        'receipt_status',
         'created_by',
     ];
 

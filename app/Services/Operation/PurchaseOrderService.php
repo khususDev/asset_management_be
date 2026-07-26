@@ -87,7 +87,7 @@ class PurchaseOrderService
 
                 $poNumber = DocNumberHelper::generate(
                     'PO',
-                    $department->code
+                    $department->id
                 );
 
                 $po->update([

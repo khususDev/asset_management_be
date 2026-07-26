@@ -52,4 +52,12 @@ class GoodsReceiptItem extends Model
             $this->purchaseOrderItem->quantity -
             $accepted;
     }
+
+    public function asset()
+    {
+        return $this->hasOne(
+            \App\Models\Operation\AssetManagement\Asset::class,
+            'goods_receipt_item_id'
+        );
+    }
 }

@@ -28,11 +28,11 @@ class PurchaseRequestController extends Controller
     public function store(StorePurchaseRequestRequest $request)
     {
 
-        $department = Department::find($request->department_id);
+        $department = Department::findOrFail($request->department_id);
 
         $docNumber = DocNumberHelper::generate(
             'PR',
-            $department->code
+            $department->id
         );
 
         DB::beginTransaction();
@@ -62,6 +62,7 @@ class PurchaseRequestController extends Controller
                     'total_amount' => $subTotal,
                     'need_to_issue_po' => $item['need_to_issue_po'] ?? true,
                     'vendor_id' => $item['vendor_id'] ?? null,
+                    'vendor_name' => $item['vendor_name'],
                     'is_pkp' => $item['is_pkp'] ?? false,
                     'pic_contact' => $item['pic_contact'] ?? null,
                     'url' => $item['url'] ?? null,
@@ -70,44 +71,45 @@ class PurchaseRequestController extends Controller
                     'expected_arrival_date' => $item['expected_arrival_date'] ?? null,
                     'delivery_branch_id' => $item['delivery_branch_id'] ?? null,
                     'item_purpose' => $item['item_purpose'] ?? null,
+                    'asset_class' => $item['asset_class'],
                 ]);
             }
 
             $purchaseRequest->update(['total_estimated_amount' => $this->purchaseRequestService->calculateTotalAmount($request->items)]);
 
-                // 1. Ambil SATU konfigurasi yang aktif untuk modul tersebut
-                $activeSetting = DB::table('wfl_approval_settings')
-                    ->where('module', 'Purchase Request')
-                    ->where('is_active', 1)
-                    ->where('department_id', $request->department_id) // <--- TAMBAHKAN FILTER INI
-                    ->first();
+            // 1. Ambil SATU konfigurasi yang aktif untuk modul tersebut
+            $activeSetting = DB::table('wfl_approval_settings')
+                ->where('module', 'Purchase Request')
+                ->where('is_active', 1)
+                ->where('department_id', $request->department_id) // <--- TAMBAHKAN FILTER INI
+                ->first();
 
-                if (!$activeSetting) {
-                    throw new \Exception("Alur Approval untuk Departemen '{$request->department}' belum dikonfigurasi.");
-                }
+            if (!$activeSetting) {
+                throw new \Exception("Alur Approval untuk Departemen '{$request->department}' belum dikonfigurasi.");
+            }
 
-                // 2. Ambil semua level berdasarkan ID header yang didapat tadi
-                $approvalSettings = DB::table('wfl_approval_setting_levels')
-                    ->where('wfl_approval_setting_id', $activeSetting->id)
-                    ->orderBy('level', 'asc')
-                    ->get();
+            // 2. Ambil semua level berdasarkan ID header yang didapat tadi
+            $approvalSettings = DB::table('wfl_approval_setting_levels')
+                ->where('wfl_approval_setting_id', $activeSetting->id)
+                ->orderBy('level', 'asc')
+                ->get();
 
-                // 3. Loop seperti biasa
-                foreach ($approvalSettings as $setting) {
-                    $userId = $setting->user_id;
-                    $user = User::find($userId);
+            // 3. Loop seperti biasa
+            foreach ($approvalSettings as $setting) {
+                $userId = $setting->user_id;
+                $user = User::find($userId);
 
-                    WorkflowApproval::create([
-                        'approvable_type' => get_class($purchaseRequest),
-                        'approvable_id' => $purchaseRequest->id,
-                        'level' => $setting->level,
-                        'role_id' => $user->roles->first()?->id,
-                        'user_id' => $userId,
-                        'status' => 'PENDING',
-                        'note' => null
-                    ]);
-                }
-            
+                WorkflowApproval::create([
+                    'approvable_type' => get_class($purchaseRequest),
+                    'approvable_id' => $purchaseRequest->id,
+                    'level' => $setting->level,
+                    'role_id' => $user->roles->first()?->id,
+                    'user_id' => $userId,
+                    'status' => 'PENDING',
+                    'note' => null
+                ]);
+            }
+
 
             DB::commit();
             return response()->json(['success' => true, 'data' => $purchaseRequest->load('items')]);
@@ -210,6 +212,7 @@ class PurchaseRequestController extends Controller
                     'total_amount' => $subTotal,
                     'need_to_issue_po' => $item['need_to_issue_po'] ?? true,
                     'vendor_id' => $item['vendor_id'] ?? null,
+                    'vendor_name' => $item['vendor_name'],
                     'is_pkp' => $item['is_pkp'] ?? false,
                     'pic_contact' => $item['pic_contact'] ?? null,
                     'url' => $item['url'] ?? null,
@@ -218,6 +221,7 @@ class PurchaseRequestController extends Controller
                     'expected_arrival_date' => $item['expected_arrival_date'] ?? null,
                     'delivery_branch_id' => $item['delivery_branch_id'] ?? null,
                     'item_purpose' => $item['item_purpose'] ?? null,
+                    'asset_class' => $item['asset_class'],
                 ]);
             }
 
@@ -231,27 +235,27 @@ class PurchaseRequestController extends Controller
         }
     }
 
-public function destroy($id)
-{
-    $pr = PurchaseRequest::find($id);
+    public function destroy($id)
+    {
+        $pr = PurchaseRequest::find($id);
 
-    if (!$pr) {
-        return response()->json(['success' => false, 'message' => 'Data tidak ditemukan.'], 404);
+        if (!$pr) {
+            return response()->json(['success' => false, 'message' => 'Data tidak ditemukan.'], 404);
+        }
+
+        if ($pr->status !== 'PENDING') {
+            return response()->json(['success' => false, 'message' => 'Tidak bisa membatalkan dokumen yang sudah diproses.'], 422);
+        }
+
+        // Gunakan REJECTED agar lolos dari Check Constraint PostgreSQL
+        $pr->status = 'REJECTED';
+        $pr->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data Purchase Request berhasil dibatalkan.'
+        ]);
     }
-
-    if ($pr->status !== 'PENDING') {
-        return response()->json(['success' => false, 'message' => 'Tidak bisa membatalkan dokumen yang sudah diproses.'], 422);
-    }
-
-    // Gunakan REJECTED agar lolos dari Check Constraint PostgreSQL
-    $pr->status = 'REJECTED'; 
-    $pr->save();
-
-    return response()->json([
-        'success' => true, 
-        'message' => 'Data Purchase Request berhasil dibatalkan.'
-    ]);
-}
 
     public function manualApprove($id)
     {
@@ -284,38 +288,43 @@ public function destroy($id)
     }
 
     public function markApproved(Request $request, $id)
-{
-    // 1. Temukan PR-nya terlebih dahulu
-    $pr = PurchaseRequest::findOrFail($id);
+    {
+        // Load PR beserta items-nya
+        $pr = PurchaseRequest::with('items')->findOrFail($id);
 
-    DB::beginTransaction();
-    try {
-        // 2. Update status PR ke PO_CREATED
-        $pr->update(['status' => 'PO_CREATED']);
+        DB::beginTransaction();
+        try {
+            // 1. Eksekusi pembuatan PO & PO Items via Service
+            // (Sesuaikan 'generateFromPR' dengan nama method asli di GeneratePurchaseOrderService Anda)
+            $this->generatePurchaseOrderService->generateFromPR($pr, $request->user()->id);
 
-        // 3. Update HANYA approval yang terkait dengan PR ini saja
-        // Kita gunakan approvable_type (namespace) dan approvable_id (ID PR-nya)
-        $updatedRows = WorkflowApproval::where('approvable_type', PurchaseRequest::class)
-            ->where('approvable_id', $pr->id) // <--- INI KUNCI KEAMANANNYA
-            ->where('status', 'PENDING')      // Hanya yang masih menggantung
-            ->update([
-                'status' => 'MANUAL', 
-                'note' => 'Approval Manual: ' . ($request->note ?? 'Approved via system override'),
-                'action_date' => now(),
-                'user_id' => $request->user()->id
+            // 2. Update status PR ke PO_CREATED
+            $pr->update(['status' => 'PO_CREATED']);
+
+            // 3. Update approval yang terkait
+            $updatedRows = WorkflowApproval::where('approvable_type', PurchaseRequest::class)
+                ->where('approvable_id', $pr->id)
+                ->where('status', 'PENDING')
+                ->update([
+                    'status' => 'MANUAL',
+                    'note' => 'Approval Manual: ' . ($request->note ?? 'Approved via system override'),
+                    'action_date' => now(),
+                    'user_id' => $request->user()->id
+                ]);
+
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => "PR berhasil diproses & Purchase Order berhasil dibuat. $updatedRows level approval diubah ke MANUAL."
             ]);
-
-        DB::commit();
-        return response()->json([
-            'success' => true, 
-            'message' => "PR berhasil diproses. $updatedRows level approval diubah menjadi status MANUAL."
-        ]);
-        
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return response()->json(['success' => false, 'message' => 'Gagal melakukan Mark Approved: ' . $e->getMessage()], 500);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal melakukan Mark Approved: ' . $e->getMessage()
+            ], 500);
+        }
     }
-}
 
     public function printPdf($id)
     {
@@ -330,14 +339,14 @@ public function destroy($id)
         ])->findOrFail($id);
 
         // 2. Logika Warna Watermark Dinamis
-        $status = $pr->status ?? 'PENDING'; 
-        $watermarkColor = 'rgba(108, 117, 125, 0.08)'; 
+        $status = $pr->status ?? 'PENDING';
+        $watermarkColor = 'rgba(108, 117, 125, 0.08)';
         if ($status === 'APPROVED') {
-            $watermarkColor = 'rgba(40, 167, 69, 0.12)'; 
+            $watermarkColor = 'rgba(40, 167, 69, 0.12)';
         } elseif ($status === 'REJECTED') {
-            $watermarkColor = 'rgba(220, 53, 69, 0.12)'; 
+            $watermarkColor = 'rgba(220, 53, 69, 0.12)';
         } elseif ($status === 'PARTIAL_APPROVED') {
-            $watermarkColor = 'rgba(0, 123, 255, 0.12)'; 
+            $watermarkColor = 'rgba(0, 123, 255, 0.12)';
         }
 
         $watermarkText = str_replace('_', ' ', $status);
@@ -535,10 +544,15 @@ public function destroy($id)
 
             // Generate Header kolom berdasarkan jumlah level data yang tersimpan di database
             foreach ($approvals as $index => $wfl) {
-                if ($index === 0) { $headerText = 'ACKNOWLEDGE'; }
-                elseif ($index === 1) { $headerText = 'APPROVAL 1'; }
-                elseif ($index === 2) { $headerText = 'APPROVAL 2'; }
-                else { $headerText = 'APPROVAL ' . ($index); }
+                if ($index === 0) {
+                    $headerText = 'ACKNOWLEDGE';
+                } elseif ($index === 1) {
+                    $headerText = 'APPROVAL 1';
+                } elseif ($index === 2) {
+                    $headerText = 'APPROVAL 2';
+                } else {
+                    $headerText = 'APPROVAL ' . ($index);
+                }
 
                 $html .= '<th style="width: ' . $colWidth . '%;">' . $headerText . '</th>';
             }
@@ -548,7 +562,7 @@ public function destroy($id)
             // Looping data user approver asli dari data yang terkunci di database
             foreach ($approvals as $wfl) {
                 $html .= '<td>';
-                
+
                 $jabatan = $wfl->approver->role->name ?? '-';
                 $namaApprover = $wfl->approver->name ?? 'N/A';
 
@@ -557,7 +571,7 @@ public function destroy($id)
                     $html .= '<div style="height: 45px;"></div>'; // Ruang kosong tanda tangan manual
                     $html .= '<div class="bold" style="font-size:11px;">' . $namaApprover . '</div>';
                     $html .= '<div style="font-size: 9px; color: #555; margin-top: 2px;">' . $jabatan . '</div>';
-                } 
+                }
                 // JIKA BY SYSTEM: Tampilkan stempel digital sesuai status approval di database
                 else {
                     if ($wfl->status === 'APPROVED') {
@@ -590,7 +604,7 @@ public function destroy($id)
 
         return response($html);
     }
-    
+
     public function getFormMasters()
     {
         try {

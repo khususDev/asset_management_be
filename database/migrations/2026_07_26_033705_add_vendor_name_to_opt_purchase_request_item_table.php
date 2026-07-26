@@ -11,9 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('locations', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+        Schema::table('opt_purchase_request_item', function (Blueprint $table) {
+            $table->string('vendor_name')->nullable();
         });
     }
 
@@ -22,6 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('locations');
+        Schema::table('opt_purchase_request_item', function (Blueprint $table) {
+            $table->dropColumn('vendor_name');
+        });
     }
 };
