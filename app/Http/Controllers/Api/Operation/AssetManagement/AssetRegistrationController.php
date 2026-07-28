@@ -63,25 +63,25 @@ class AssetRegistrationController extends Controller
     public function register(Request $request, $id)
     {
         $request->validate([
-            'serial_number'     => 'nullable|string|max:255',
+            'serial_number' => 'nullable|string|max:255',
 
-            'asset_category_id' => 'required|exists:mst_asset_categories,id',
-            'asset_type_id'     => 'required|exists:mst_asset_types,id',
+            'asset_category_id' => 'required|exists:mst_asset_category,id',
+            'asset_type_id' => 'required|exists:mst_asset_type,id',
 
-            'brand_id'          => 'nullable|exists:mst_asset_brands,id',
-            'model_id'          => 'nullable|exists:mst_asset_models,id',
+            'brand_id' => 'nullable|exists:mst_asset_brand,id',
+            'model_id' => 'nullable|exists:mst_asset_model,id',
 
-            'status_id'         => 'required|exists:mst_asset_statuses,id',
+            'status_id' => 'required|exists:mst_asset_status,id',
 
-            'branch_id'         => 'required|exists:mst_branches,id',
-            'location_id'       => 'nullable|exists:mst_locations,id',
+            'branch_id' => 'required|exists:mst_org_branch,id',
+            'location_id' => 'nullable|exists:mst_org_location,id',
 
-            'warranty_start'    => 'nullable|date',
-            'warranty_end'      => 'nullable|date',
+            'warranty_start' => 'nullable|date',
+            'warranty_end' => 'nullable|date',
 
-            'useful_life'       => 'nullable|integer',
+            'useful_life' => 'nullable|integer',
 
-            'remarks'           => 'nullable|string',
+            'remarks' => 'nullable|string',
         ]);
 
         DB::beginTransaction();
@@ -94,32 +94,32 @@ class AssetRegistrationController extends Controller
 
             $asset->update([
 
-                'asset_code'         => $assetCode,
+                'asset_code' => $assetCode,
 
-                'serial_number'      => $request->serial_number,
+                'serial_number' => $request->serial_number,
 
-                'asset_category_id'  => $request->asset_category_id,
-                'asset_type_id'      => $request->asset_type_id,
+                'asset_category_id' => $request->asset_category_id,
+                'asset_type_id' => $request->asset_type_id,
 
-                'brand_id'           => $request->brand_id,
-                'model_id'           => $request->model_id,
+                'brand_id' => $request->brand_id,
+                'model_id' => $request->model_id,
 
-                'status_id'          => $request->status_id,
+                'status_id' => $request->status_id,
 
-                'branch_id'          => $request->branch_id,
-                'location_id'        => $request->location_id,
+                'branch_id' => $request->branch_id,
+                'location_id' => $request->location_id,
 
-                'warranty_start'     => $request->warranty_start,
-                'warranty_end'       => $request->warranty_end,
+                'warranty_start' => $request->warranty_start,
+                'warranty_end' => $request->warranty_end,
 
-                'useful_life'        => $request->useful_life,
+                'useful_life' => $request->useful_life,
 
-                'remarks'            => $request->remarks,
+                'remarks' => $request->remarks,
 
                 'registration_status' => 'REGISTERED',
 
-                'qr_code'            => $assetCode,
-                'barcode'            => $assetCode,
+                'qr_code' => $assetCode,
+                'barcode' => $assetCode,
             ]);
 
             DB::commit();
@@ -144,12 +144,12 @@ class AssetRegistrationController extends Controller
             'success' => true,
             'data' => [
                 'categories' => Category::orderBy('name')->get(),
-                'types'      => Type::orderBy('name')->get(),
-                'brands'     => Brand::orderBy('name')->get(),
-                'models'     => AssetModel::orderBy('name')->get(),
-                'statuses'   => Status::orderBy('name')->get(),
-                'branchs'    => Branch::orderBy('name')->get(),
-                'locations'  => Location::orderBy('name')->get(),
+                'types' => Type::orderBy('name')->get(),
+                'brands' => Brand::orderBy('name')->get(),
+                'models' => AssetModel::orderBy('name')->get(),
+                'statuses' => Status::orderBy('name')->get(),
+                'branchs' => Branch::orderBy('name')->get(),
+                'locations' => Location::orderBy('name')->get(),
                 'asset_code' => $this->assetCodeService->generateAssetCode(),
             ]
         ]);

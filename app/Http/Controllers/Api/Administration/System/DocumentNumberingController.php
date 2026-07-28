@@ -30,8 +30,8 @@ class DocumentNumberingController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'module' => 'required|string|max:100|unique:sys_document_numbering,module',
-            'department' => 'required|string|max:100',
+            'module' => 'required|string|max:3',
+            'department' => 'required|numeric',
             'name' => 'required|string|max:255',
             'format' => 'required|string|max:255',
             'prefix' => 'nullable|string|max:50',
@@ -64,9 +64,10 @@ class DocumentNumberingController extends Controller
     public function update(Request $request, $id)
     {
         $doc = DocumentNumbering::findOrFail($id);
+
         $request->validate([
-            'module' => ['required', 'string', 'max:100', Rule::unique('sys_document_numbering')->ignore($id)],
-            'department' => 'required|string|max:100',
+            'module' => 'required|string|max:3',
+            'department' => 'required|numeric',
             'name' => 'required|string|max:255',
             'format' => 'required|string|max:255',
             'prefix' => 'nullable|string|max:50',
@@ -75,16 +76,25 @@ class DocumentNumberingController extends Controller
             'is_active' => 'boolean'
         ]);
 
+        // Abaikan ID saat ini agar tidak membentur pengecekan dirinya sendiri
         $exists = DocumentNumbering::where('module', $request->module)
             ->where('department', $request->department)
+            ->where('id', '!=', $id) // <--- PERBAIKAN DI SINI
             ->exists();
 
         if ($exists) {
-            return response()->json(['errors' => ['module' => ['Format untuk modul dan departemen ini sudah ada.']]], 422);
+            return response()->json([
+                'errors' => ['module' => ['Format untuk modul dan departemen ini sudah ada.']]
+            ], 422);
         }
 
         $doc->update($request->except('current_sequence')); // Cegah user update nomor urut dari form
-        return response()->json(['success' => true, 'message' => 'Penomoran berhasil diperbarui!', 'data' => $doc]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Penomoran berhasil diperbarui!',
+            'data' => $doc
+        ]);
     }
 
     public function destroy($id)
