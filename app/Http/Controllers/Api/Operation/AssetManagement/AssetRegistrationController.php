@@ -64,7 +64,7 @@ class AssetRegistrationController extends Controller
     {
         $request->validate([
             'serial_number' => 'nullable|string|max:255',
-
+            'asset_class' => 'required',
             'asset_category_id' => 'required|exists:mst_asset_category,id',
             'asset_type_id' => 'required|exists:mst_asset_type,id',
 
@@ -95,7 +95,7 @@ class AssetRegistrationController extends Controller
             $asset->update([
 
                 'asset_code' => $assetCode,
-
+                'asset_class' => $request->asset_class,
                 'serial_number' => $request->serial_number,
 
                 'asset_category_id' => $request->asset_category_id,

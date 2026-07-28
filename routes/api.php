@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\Administration\System\DocumentNumberingController;
 use App\Http\Controllers\Api\Administration\System\NotificationSettingController;
 use App\Http\Controllers\Api\Administration\Workflow\ApprovalSettingController;
 use App\Http\Controllers\Api\Approvals\WorkflowApprovalController;
+use App\Http\Controllers\Api\Operation\AssetManagement\AssetDirectoryController;
 use App\Http\Controllers\Api\Operation\Procurement\GoodsReceiptController;
 use App\Http\Controllers\Api\Operation\Procurement\PurchaseRequestController;
 use App\Http\Controllers\Api\Operation\Procurement\TransferRequestController;
@@ -128,5 +129,15 @@ Route::middleware('auth:sanctum')->group(
         Route::get('opt_asset_registration/masters', [AssetRegistrationController::class, 'masters']);
         Route::get('opt_asset_registration/{id}', [AssetRegistrationController::class, 'show']);
         Route::put('opt_asset_registration/{id}', [AssetRegistrationController::class, 'register']);
+        ### Asset Directory
+        Route::get(
+            'opt_asset_directory',
+            [AssetDirectoryController::class, 'index']
+        );
+
+        Route::get(
+            'opt_asset_directory/{id}',
+            [AssetDirectoryController::class, 'show']
+        );
     }
 );
