@@ -69,12 +69,48 @@ class AssetDirectoryResource extends JsonResource
                 'purchase_cost' => $this->purchase_cost,
             ],
 
+            'procurement_document' => [
+                'purchase_request' => $this->goodsReceiptItem?->goodsReceipt?->purchaseOrder?->purchaseRequest?->request_number,
+                'purchase_order' => $this->goodsReceiptItem?->goodsReceipt?->purchaseOrder?->po_number,
+                'goods_receipt' => $this->goodsReceiptItem?->goodsReceipt?->gr_number,
+            ],
+
             'warranty' => [
                 'start' => $this->warranty_start,
                 'end' => $this->warranty_end,
             ],
-
             'registration_status' => $this->registration_status,
+
+            'usage' => [
+                'code' => $this->usage_status,
+                'label' => match ($this->usage_status) {
+                    'AVAILABLE' => 'Available',
+                    'ASSIGNED' => 'Assigned',
+                    'RESERVED' => 'Reserved',
+                    'MAINTENANCE' => 'Maintenance',
+                    'DISPOSED' => 'Disposed',
+                    default => '-',
+                },
+                'color' => match ($this->usage_status) {
+                    'AVAILABLE' => '#10B981',
+                    'ASSIGNED' => '#3B82F6',
+                    'RESERVED' => '#F59E0B',
+                    'MAINTENANCE' => '#8B5CF6',
+                    'DISPOSED' => '#6B7280',
+                    default => '#6B7280',
+                },
+            ],
+            'financial' => [
+                'purchase_cost' => $this->purchase_cost,
+                'salvage_value' => $this->salvage_value,
+                'useful_life' => $this->useful_life,
+            ],
+
+            'assigned_to' => [
+                'id' => null,
+                'name' => null,
+            ],
+            'remarks' => $this->remarks,
         ];
     }
 }

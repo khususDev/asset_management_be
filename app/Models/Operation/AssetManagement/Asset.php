@@ -55,6 +55,7 @@ class Asset extends Model
         'salvage_value',
 
         'registration_status',
+        'usage_status',
 
         'remarks',
 
