@@ -132,7 +132,7 @@ Route::middleware('auth:sanctum')->group(
         ### Asset Directory
         Route::get('opt_asset_directory', [AssetDirectoryController::class, 'index']);
         Route::get('/opt_asset_directory/masters', [AssetDirectoryController::class, 'masters']);
-        Route::get('opt_asset_directory/{id}', [AssetDirectoryController::class, 'show']);
         Route::post('/opt_asset_directory/print-label', [AssetDirectoryController::class, 'printLabel']);
+        Route::get('opt_asset_directory/{id}', [AssetDirectoryController::class, 'show']);
     }
 );

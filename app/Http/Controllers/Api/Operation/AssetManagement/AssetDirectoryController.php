@@ -98,31 +98,52 @@ class AssetDirectoryController extends Controller
 
     public function printLabel(Request $request)
     {
-        $query = Asset::query();
+        $query = Asset::query()
 
-        if ($request->category) {
-            $query->where('category_id', $request->category);
+            ->where('registration_status', 'REGISTERED')
+
+            ->where('asset_class', 'FIXED_ASSET');
+
+        if ($request->filled('category')) {
+            $query->where('asset_category_id', $request->category);
         }
 
-        if ($request->usage) {
+        if ($request->filled('usage')) {
             $query->where('usage_status', $request->usage);
         }
 
-        if ($request->search) {
-            $query->whereHas('asset', function ($q) use ($request) {
-                $q->where('code', 'ilike', "%{$request->search}%")
-                    ->orWhere('name', 'ilike', "%{$request->search}%");
+        if ($request->filled('search')) {
+
+            $query->where(function ($q) use ($request) {
+
+                $q->where('asset_code', 'ILIKE', "%{$request->search}%")
+                    ->orWhere('asset_name', 'ILIKE', "%{$request->search}%")
+                    ->orWhere('serial_number', 'ILIKE', "%{$request->search}%");
             });
         }
 
+        if ($request->scope == 'selected') {
+
+            $query->whereIn('id', $request->selected_ids ?? []);
+        }
+
         $assets = $query
-            ->with('asset')
-            ->orderBy('id')
+            ->with([
+                'category',
+                'brand',
+                'model',
+                'status',
+                'branch',
+            ])
+            ->orderBy('asset_code')
             ->get();
 
         $pdf = Pdf::loadView(
-            'pdf.asset-label',
-            compact('assets')
+            'pdf.asset-label-a4',
+            [
+                'assets' => $assets,
+                'size' => $request->size,
+            ]
         )->setPaper('a4');
 
         return $pdf->stream('asset-label.pdf');
