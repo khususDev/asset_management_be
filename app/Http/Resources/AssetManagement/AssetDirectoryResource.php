@@ -57,6 +57,7 @@ class AssetDirectoryResource extends JsonResource
             ],
 
             'branch' => [
+                'code' => $this->branch?->code,
                 'name' => $this->branch?->name,
             ],
 
