@@ -127,12 +127,16 @@ Route::middleware('auth:sanctum')->group(
         ### Asset Registration
         Route::get('opt_asset_registration', [AssetRegistrationController::class, 'index']);
         Route::get('opt_asset_registration/masters', [AssetRegistrationController::class, 'masters']);
+        Route::post('opt_asset_registration/existing', [AssetRegistrationController::class, 'storeExisting']);
         Route::get('opt_asset_registration/{id}', [AssetRegistrationController::class, 'show']);
         Route::put('opt_asset_registration/{id}', [AssetRegistrationController::class, 'register']);
+        Route::get('/template', [AssetRegistrationController::class, 'downloadTemplate']);
+        Route::post('/import', [AssetRegistrationController::class, 'importExisting']);
         ### Asset Directory
-        Route::get('opt_asset_directory', [AssetDirectoryController::class, 'index']);
         Route::get('/opt_asset_directory/masters', [AssetDirectoryController::class, 'masters']);
+        Route::post('opt_asset_directory/print-label', [AssetDirectoryController::class, 'printLabel']);
+        Route::get('opt_asset_directory', [AssetDirectoryController::class, 'index']);
         Route::get('opt_asset_directory/{id}', [AssetDirectoryController::class, 'show']);
-        Route::post('/opt_asset_directory/print-label', [AssetDirectoryController::class, 'printLabel']);
+        // Route::post('/opt_asset_directory/print-label', [AssetDirectoryController::class, 'printLabel']);
     }
 );

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\AssetManagement\AssetDirectoryResource;
 use App\Models\Operation\AssetManagement\Asset;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Picqer\Barcode\BarcodeGeneratorPNG;
 use Illuminate\Http\Request;
 use App\Models\Administration\Asset\Category;
 use App\Models\Administration\Asset\Type;
@@ -14,6 +15,7 @@ use App\Models\Administration\Asset\Status;
 use App\Models\Administration\Organization\Branch;
 use App\Models\Administration\Organization\Location;
 use App\Models\Administration\Procurement\Vendor;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class AssetDirectoryController extends Controller
 {
@@ -98,35 +100,123 @@ class AssetDirectoryController extends Controller
 
     public function printLabel(Request $request)
     {
-        $query = Asset::query();
+        // 1. Base query disamakan persis dengan fungsi index()
+        $query = Asset::with(['category', 'type', 'brand', 'model', 'status', 'vendor', 'department', 'branch', 'location'])
+            ->where('registration_status', 'REGISTERED')
+            ->where('asset_class', 'FIXED_ASSET');
 
-        if ($request->category) {
-            $query->where('category_id', $request->category);
+        // 2. Jika pengguna memilih ID secara spesifik lewat checkbox
+        if ($request->filled('selected_ids') && is_array($request->selected_ids) && count(array_filter($request->selected_ids)) > 0) {
+            $query->whereIn('id', $request->selected_ids);
+        }
+        // 3. Jika cetak massal, terapkan seluruh filter yang ada di halaman index
+        else {
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('asset_code', 'ILIKE', "%{$search}%")
+                        ->orWhere('asset_name', 'ILIKE', "%{$search}%")
+                        ->orWhere('serial_number', 'ILIKE', "%{$search}%");
+                });
+            }
+
+            if ($request->filled('category')) {
+                $query->where('asset_category_id', $request->category);
+            }
+
+            if ($request->filled('type')) {
+                $query->where('asset_type_id', $request->type);
+            }
+
+            if ($request->filled('brand')) {
+                $query->where('brand_id', $request->brand);
+            }
+
+            if ($request->filled('status')) {
+                $query->where('status_id', $request->status);
+            }
+
+            if ($request->filled('usage')) {
+                $query->where('usage_status', $request->usage);
+            }
+
+            if ($request->filled('branch')) {
+                $query->where('branch_id', $request->branch);
+            }
+
+            if ($request->filled('location')) {
+                $query->where('location_id', $request->location);
+            }
+
+            if ($request->filled('vendor')) {
+                $query->where('vendor_id', $request->vendor);
+            }
         }
 
-        if ($request->usage) {
-            $query->where('usage_status', $request->usage);
+        $assets = $query->latest()->get();
+
+        if ($assets->isEmpty()) {
+            return response()->json(['message' => 'Tidak ada data asset untuk dicetak.'], 404);
         }
 
-        if ($request->search) {
-            $query->whereHas('asset', function ($q) use ($request) {
-                $q->where('code', 'ilike', "%{$request->search}%")
-                    ->orWhere('name', 'ilike', "%{$request->search}%");
-            });
+        // Process Barcode & QR Code
+        $barcodeGenerator = new BarcodeGeneratorPNG();
+
+        foreach ($assets as $item) {
+            $code = $item->asset_code ?? $item->barcode ?? $item->qr_code ?? 'NO-CODE';
+
+            $item->barcode_base64 = base64_encode(
+                $barcodeGenerator->getBarcode($code, $barcodeGenerator::TYPE_CODE_128, 1, 28)
+            );
+
+            $qrSvg = QrCode::format('svg')->size(60)->margin(0)->generate($code);
+            $item->qrcode_base64 = base64_encode($qrSvg);
         }
 
-        $assets = $query
-            ->with('asset')
-            ->orderBy('id')
-            ->get();
+        $paperSize = $request->input('paper_size', 'A4');
 
-        $pdf = Pdf::loadView(
-            'pdf.asset-label',
-            compact('assets')
-        )->setPaper('a4');
+        if ($paperSize === 'THERMAL') {
+            $pdf = Pdf::loadView('pdf.asset-label-thermal', compact('assets'))
+                ->setPaper([0, 0, 141.73, 70.86], 'portrait');
+        } else {
+            $pdf = Pdf::loadView('pdf.asset-label-a4', compact('assets'))
+                ->setPaper('a4', 'portrait');
+        }
 
-        return $pdf->stream('asset-label.pdf');
+        return $pdf->stream('asset-labels.pdf');
     }
+
+    // public function printLabel(Request $request)
+    // {
+    //     $query = Asset::query();
+
+    //     if ($request->category) {
+    //         $query->where('category_id', $request->category);
+    //     }
+
+    //     if ($request->usage) {
+    //         $query->where('usage_status', $request->usage);
+    //     }
+
+    //     if ($request->search) {
+    //         $query->whereHas('asset', function ($q) use ($request) {
+    //             $q->where('code', 'ilike', "%{$request->search}%")
+    //                 ->orWhere('name', 'ilike', "%{$request->search}%");
+    //         });
+    //     }
+
+    //     $assets = $query
+    //         ->with('asset')
+    //         ->orderBy('id')
+    //         ->get();
+
+    //     $pdf = Pdf::loadView(
+    //         'pdf.asset-label',
+    //         compact('assets')
+    //     )->setPaper('a4');
+
+    //     return $pdf->stream('asset-label.pdf');
+    // }
 
     public function masters()
     {
