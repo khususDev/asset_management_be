@@ -9,8 +9,10 @@ class AssetDirectoryResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        return [
+        // 🛠️ TAMBAHKAN BARIS INI: Ambil relasi penugasan aktif
+        $activeAssignment = $this->currentAssignment;
 
+        return [
             'id' => $this->id,
 
             'asset' => [
@@ -107,9 +109,11 @@ class AssetDirectoryResource extends JsonResource
                 'useful_life' => $this->useful_life,
             ],
 
+            // Sekarang variabel $activeAssignment sudah valid dan terisi
             'assigned_to' => [
-                'id' => null,
-                'name' => null,
+                'id' => $activeAssignment?->user?->id ?? null,
+                'name' => $activeAssignment?->user?->name ?? null,
+                'assigned_date' => $activeAssignment?->assigned_date ?? null,
             ],
             'remarks' => $this->remarks,
         ];

@@ -131,4 +131,19 @@ class Asset extends Model
     {
         return $this->belongsTo(Location::class, 'location_id');
     }
+
+    // Relasi ke Model Assignment
+    public function assignments()
+    {
+        return $this->morphMany(Assignment::class, 'assignable');
+    }
+
+    // Relasi untuk mengambil Assignment yang SEDANG AKTIF (belum dikembalikan)
+    public function currentAssignment()
+    {
+        return $this->morphOne(Assignment::class, 'assignable')
+            ->whereNull('returned_date')
+            ->where('status', 'ACTIVE')
+            ->latestOfMany();
+    }
 }

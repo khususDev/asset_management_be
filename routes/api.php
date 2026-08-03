@@ -39,6 +39,8 @@ use App\Http\Controllers\Api\Operation\Procurement\PurchaseRequestController;
 use App\Http\Controllers\Api\Operation\Procurement\TransferRequestController;
 use App\Http\Controllers\Api\Operation\AssetManagement\AssetRegistrationController;
 use App\Http\Controllers\Api\Operation\AssetManagement\AssetRequestController;
+use App\Http\Controllers\Api\Operation\AssetManagement\ConsumableController;
+use App\Http\Controllers\Api\Operation\AssetManagement\LicenseController;
 
 Route::post('login', [AuthController::class, 'login']);
 
@@ -137,6 +139,12 @@ Route::middleware('auth:sanctum')->group(
         Route::post('opt_asset_directory/print-label', [AssetDirectoryController::class, 'printLabel']);
         Route::get('opt_asset_directory', [AssetDirectoryController::class, 'index']);
         Route::get('opt_asset_directory/{id}', [AssetDirectoryController::class, 'show']);
-        // Route::post('/opt_asset_directory/print-label', [AssetDirectoryController::class, 'printLabel']);
+        ### Consumable
+        Route::get('/consumables', [ConsumableController::class, 'index']);
+        Route::get('/consumables/{id}', [ConsumableController::class, 'show']);
+
+        // Licenses Endpoints
+        Route::get('/licenses', [LicenseController::class, 'index']);
+        Route::get('/licenses/{id}', [LicenseController::class, 'show']);
     }
 );

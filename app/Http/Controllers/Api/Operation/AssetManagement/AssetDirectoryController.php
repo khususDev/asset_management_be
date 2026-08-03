@@ -31,6 +31,7 @@ class AssetDirectoryController extends Controller
             'department',
             'branch',
             'location',
+            'currentAssignment.user',
         ])
             ->where('registration_status', 'REGISTERED')
             ->where('asset_class', 'FIXED_ASSET');
@@ -186,38 +187,6 @@ class AssetDirectoryController extends Controller
         return $pdf->stream('asset-labels.pdf');
     }
 
-    // public function printLabel(Request $request)
-    // {
-    //     $query = Asset::query();
-
-    //     if ($request->category) {
-    //         $query->where('category_id', $request->category);
-    //     }
-
-    //     if ($request->usage) {
-    //         $query->where('usage_status', $request->usage);
-    //     }
-
-    //     if ($request->search) {
-    //         $query->whereHas('asset', function ($q) use ($request) {
-    //             $q->where('code', 'ilike', "%{$request->search}%")
-    //                 ->orWhere('name', 'ilike', "%{$request->search}%");
-    //         });
-    //     }
-
-    //     $assets = $query
-    //         ->with('asset')
-    //         ->orderBy('id')
-    //         ->get();
-
-    //     $pdf = Pdf::loadView(
-    //         'pdf.asset-label',
-    //         compact('assets')
-    //     )->setPaper('a4');
-
-    //     return $pdf->stream('asset-label.pdf');
-    // }
-
     public function masters()
     {
         return response()->json([
@@ -304,6 +273,7 @@ class AssetDirectoryController extends Controller
             'branch',
             'location',
             'goodsReceiptItem.goodsReceipt.purchaseOrder.purchaseRequest',
+            'currentAssignment.user',
         ])->findOrFail($id);
 
         return response()->json([
