@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\Administration\System\DocumentNumberingController;
 use App\Http\Controllers\Api\Administration\System\NotificationSettingController;
 use App\Http\Controllers\Api\Administration\Workflow\ApprovalSettingController;
 use App\Http\Controllers\Api\Approvals\WorkflowApprovalController;
+use App\Http\Controllers\Api\Operation\AssetManagement\AssetAssignmentController;
 use App\Http\Controllers\Api\Operation\AssetManagement\AssetDirectoryController;
 use App\Http\Controllers\Api\Operation\Procurement\GoodsReceiptController;
 use App\Http\Controllers\Api\Operation\Procurement\PurchaseRequestController;
@@ -139,6 +140,8 @@ Route::middleware('auth:sanctum')->group(
         Route::post('opt_asset_directory/print-label', [AssetDirectoryController::class, 'printLabel']);
         Route::get('opt_asset_directory', [AssetDirectoryController::class, 'index']);
         Route::get('opt_asset_directory/{id}', [AssetDirectoryController::class, 'show']);
+
+        Route::post('opt_asset_directory/{id}/assign', [AssetAssignmentController::class, 'assign']);
         ### Consumable
         Route::get('/consumables', [ConsumableController::class, 'index']);
         Route::get('/consumables/{id}', [ConsumableController::class, 'show']);

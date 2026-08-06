@@ -61,34 +61,51 @@ class BackupController extends Controller
                 mkdir($backupDir, 0777, true);
             }
 
-            $storagePath = $backupDir . '/' . $filename;
-            $batPath = $backupDir . '/run_backup.bat';
-            $errorLogPath = $backupDir . '/error.log';
+            $storagePath = $backupDir . DIRECTORY_SEPARATOR . $filename;
 
-            $storagePathWin = str_replace('/', '\\', $storagePath);
-            $batPathWin = str_replace('/', '\\', $batPath);
-            $errorLogPathWin = str_replace('/', '\\', $errorLogPath);
+            $pgDumpPath = $this->resolvePgDumpPath();
+            if (!$this->isPgDumpAvailable($pgDumpPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'pg_dump tidak ditemukan atau tidak dapat dijalankan. Pastikan path di .env benar atau PostgreSQL sudah terinstal.',
+                    'error_detail' => "Resolved pg_dump path: {$pgDumpPath}",
+                ], 500);
+            }
 
-            $pgDumpPath = '"C:\Program Files\PostgreSQL\17\bin\pg_dump.exe"';
+            // Susun Command Process (Tanpa --no-password agar PGPASSWORD dibaca normal)
+            $process = new Process([
+                $pgDumpPath,
+                '-h',
+                $dbHost,
+                '-p',
+                $dbPort,
+                '-U',
+                $dbUser,
+                '-F',
+                'p',
+                '-f',
+                $storagePath,
+                $dbName,
+            ]);
 
-            $batContent = "@echo off\n";
-            $batContent .= "set PGPASSWORD={$dbPass}\n";
+            // Oper PGPASSWORD secara langsung ke process environment
+            $process->setEnv([
+                'PGPASSWORD' => $dbPass,
+                'PATH' => getenv('PATH') ?: '',
+                'SystemRoot' => getenv('SystemRoot') ?: 'C:\\Windows',
+            ]);
 
-            $batContent .= "{$pgDumpPath} -h \"{$dbHost}\" -p \"{$dbPort}\" -U \"{$dbUser}\" -F p -d \"{$dbName}\" -f \"{$storagePathWin}\" 2> \"{$errorLogPathWin}\"\n";
-            $batContent .= "set PGPASSWORD=\n";
+            $process->setWorkingDirectory($backupDir);
+            $process->setTimeout(900);
+            $process->run();
 
-            file_put_contents($batPath, $batContent);
+            $output = trim($process->getOutput());
+            $errorDetail = trim($process->getErrorOutput());
+            if (empty($errorDetail) && !empty($output)) {
+                $errorDetail = $output;
+            }
 
-            exec('"' . $batPathWin . '"', $output, $returnVar);
-
-            $errorDetail = file_exists($errorLogPath) ? file_get_contents($errorLogPath) : '';
-
-            if (file_exists($batPath))
-                @unlink($batPath);
-            if (file_exists($errorLogPath))
-                @unlink($errorLogPath);
-
-            if (file_exists($storagePath) && filesize($storagePath) > 0) {
+            if ($process->isSuccessful() && file_exists($storagePath) && filesize($storagePath) > 0) {
                 return response()->json([
                     'success' => true,
                     'message' => 'Database PostgreSQL berhasil dicadangkan.',
@@ -96,11 +113,22 @@ class BackupController extends Controller
                 ]);
             }
 
+            logger()->error('pg_dump backup failed', [
+                'pg_dump_path' => $pgDumpPath,
+                'database' => $dbName,
+                'host' => $dbHost,
+                'port' => $dbPort,
+                'user' => $dbUser,
+                'exit_code' => $process->getExitCode(),
+                'error_detail' => $errorDetail,
+                'output' => $output,
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'PostgreSQL gagal melakukan backup via Windows Web Server.',
-                'error_detail' => trim($errorDetail) ?: 'Unknown Error / File SQL tidak terbentuk.',
-                'return_code' => $returnVar
+                'message' => 'PostgreSQL gagal melakukan backup. Periksa error_detail untuk detail lebih lengkap.',
+                'error_detail' => $errorDetail ?: 'Unknown Error / File SQL tidak terbentuk.',
+                'return_code' => $process->getExitCode()
             ], 500);
 
         } catch (\Exception $e) {
@@ -109,6 +137,58 @@ class BackupController extends Controller
                 'message' => 'Terjadi kesalahan sistem internal.',
                 'error_detail' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    private function resolvePgDumpPath(): string
+    {
+        $customPath = env('PG_DUMP_PATH');
+        if (!empty($customPath)) {
+            return $customPath;
+        }
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            $defaultWindowsPath = 'C:/Program Files/PostgreSQL/17/bin/pg_dump.exe';
+            if (file_exists($defaultWindowsPath)) {
+                return $defaultWindowsPath;
+            }
+            return 'pg_dump.exe';
+        }
+
+        return 'pg_dump';
+    }
+
+    // private function resolvePgDumpPath(): string
+    // {
+    //     $customPath = env('PG_DUMP_PATH');
+    //     if (!empty($customPath)) {
+    //         return $customPath;
+    //     }
+
+    //     if (PHP_OS_FAMILY === 'Windows') {
+    //         $defaultWindowsPath = 'C:\\Program Files\\PostgreSQL\\17\\bin\\pg_dump.exe';
+    //         if (file_exists($defaultWindowsPath)) {
+    //             return $defaultWindowsPath;
+    //         }
+    //         return 'pg_dump.exe';
+    //     }
+
+    //     return 'pg_dump';
+    // }
+
+    private function isPgDumpAvailable(string $pgDumpPath): bool
+    {
+        try {
+            $check = new Process([$pgDumpPath, '--version']);
+            $check->setTimeout(10);
+            $check->run();
+            return $check->isSuccessful();
+        } catch (\Throwable $e) {
+            logger()->warning('pg_dump availability check failed', [
+                'pg_dump_path' => $pgDumpPath,
+                'exception' => $e->getMessage(),
+            ]);
+            return false;
         }
     }
 
@@ -131,3 +211,4 @@ class BackupController extends Controller
         return response()->json(['message' => 'File tidak ditemukan'], 404);
     }
 }
+

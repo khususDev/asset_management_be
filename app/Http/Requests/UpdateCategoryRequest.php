@@ -14,8 +14,14 @@ class UpdateCategoryRequest extends FormRequest
 
     public function rules(): array
     {
+        $categoryId = $this->route('asm_category');
         return [
-            'code' => ['required', 'string', 'max:50', Rule::unique('mst_asset_category')->ignore($this->route('category'))],
+            'code' => [
+                'required',
+                'string',
+                'max:50',
+                Rule::unique('mst_asset_category', 'code')->ignore($categoryId)
+            ],
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'is_active' => 'boolean',

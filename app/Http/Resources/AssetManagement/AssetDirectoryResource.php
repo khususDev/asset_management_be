@@ -9,8 +9,10 @@ class AssetDirectoryResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        // 🛠️ TAMBAHKAN BARIS INI: Ambil relasi penugasan aktif
         $activeAssignment = $this->currentAssignment;
+
+        // Helper untuk memastikan variabel bernilai Object sebelum dipanggil relasingya
+        $obj = fn($val) => is_object($val) ? $val : null;
 
         return [
             'id' => $this->id,
@@ -25,46 +27,46 @@ class AssetDirectoryResource extends JsonResource
             ],
 
             'category' => [
-                'id' => $this->category?->id,
-                'name' => $this->category?->name,
+                'id' => $obj($this->category)?->id,
+                'name' => $obj($this->category)?->name,
             ],
 
             'type' => [
-                'id' => $this->type?->id,
-                'name' => $this->type?->name,
+                'id' => $obj($this->type)?->id,
+                'name' => $obj($this->type)?->name,
             ],
 
             'brand' => [
-                'id' => $this->brand?->id,
-                'name' => $this->brand?->name,
+                'id' => $obj($this->brand)?->id,
+                'name' => $obj($this->brand)?->name,
             ],
 
             'model' => [
-                'id' => $this->model?->id,
-                'name' => $this->model?->name,
+                'id' => $obj($this->model)?->id,
+                'name' => $obj($this->model)?->name,
             ],
 
             'status' => [
-                'id' => $this->status?->id,
-                'name' => $this->status?->name,
-                'color' => $this->status?->color,
+                'id' => $obj($this->status)?->id,
+                'name' => $obj($this->status)?->name,
+                'color' => $obj($this->status)?->color,
             ],
 
             'vendor' => [
-                'name' => $this->vendor?->name,
+                'name' => $obj($this->vendor)?->name,
             ],
 
             'department' => [
-                'name' => $this->department?->name,
+                'name' => $obj($this->department)?->name,
             ],
 
             'branch' => [
-                'code' => $this->branch?->code,
-                'name' => $this->branch?->name,
+                'code' => $obj($this->branch)?->code,
+                'name' => $obj($this->branch)?->name,
             ],
 
             'location' => [
-                'name' => $this->location?->name,
+                'name' => $obj($this->location)?->name,
             ],
 
             'procurement' => [
@@ -73,15 +75,16 @@ class AssetDirectoryResource extends JsonResource
             ],
 
             'procurement_document' => [
-                'purchase_request' => $this->goodsReceiptItem?->goodsReceipt?->purchaseOrder?->purchaseRequest?->request_number,
-                'purchase_order' => $this->goodsReceiptItem?->goodsReceipt?->purchaseOrder?->po_number,
-                'goods_receipt' => $this->goodsReceiptItem?->goodsReceipt?->gr_number,
+                'purchase_request' => $obj($this->goodsReceiptItem)?->goodsReceipt?->purchaseOrder?->purchaseRequest?->request_number,
+                'purchase_order' => $obj($this->goodsReceiptItem)?->goodsReceipt?->purchaseOrder?->po_number,
+                'goods_receipt' => $obj($this->goodsReceiptItem)?->goodsReceipt?->gr_number,
             ],
 
             'warranty' => [
                 'start' => $this->warranty_start,
                 'end' => $this->warranty_end,
             ],
+
             'registration_status' => $this->registration_status,
 
             'usage' => [
@@ -103,18 +106,19 @@ class AssetDirectoryResource extends JsonResource
                     default => '#6B7280',
                 },
             ],
+
             'financial' => [
                 'purchase_cost' => $this->purchase_cost,
                 'salvage_value' => $this->salvage_value,
                 'useful_life' => $this->useful_life,
             ],
 
-            // Sekarang variabel $activeAssignment sudah valid dan terisi
             'assigned_to' => [
-                'id' => $activeAssignment?->user?->id ?? null,
-                'name' => $activeAssignment?->user?->name ?? null,
-                'assigned_date' => $activeAssignment?->assigned_date ?? null,
+                'id' => $obj($activeAssignment)?->user?->id ?? null,
+                'name' => $obj($activeAssignment)?->user?->name ?? null,
+                'assigned_date' => $obj($activeAssignment)?->assigned_date ?? null,
             ],
+
             'remarks' => $this->remarks,
         ];
     }

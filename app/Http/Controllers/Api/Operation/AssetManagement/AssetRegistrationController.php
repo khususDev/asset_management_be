@@ -35,28 +35,39 @@ class AssetRegistrationController extends Controller
     public function index(Request $request)
     {
         try {
-            // 1. Pending Procurement Items (Goods Receipt)
-            $pendingGrItems = DB::table('opt_goods_receipt_item as gri')
-                ->join('opt_goods_receipt as gr', 'gri.goods_receipt_id', '=', 'gr.id')
+            // 1. Aset dari Procurement (GR) yang MASIH PENDING (Belum selesai di-register)
+            $pendingGrItems = DB::table('opt_assets as a')
+                ->leftJoin('opt_goods_receipt_item as gri', 'a.goods_receipt_item_id', '=', 'gri.id')
+                ->leftJoin('opt_goods_receipt as gr', 'gri.goods_receipt_id', '=', 'gr.id')
+                ->where(function ($q) {
+                    $q->where('a.registration_status', 'PENDING')
+                        ->orWhere('a.registration_status', 'WAITING_REGISTRATION')
+                        ->orWhereNull('a.registration_status');
+                })
+                ->whereNotNull('a.goods_receipt_item_id') // Hanya yang berasal dari GR/Procurement
                 ->select(
-                    'gri.id as record_id',
-                    'gr.gr_number as reference_code',
-                    'gri.item_description as item_name',
+                    'a.id as record_id',
+                    DB::raw("COALESCE(gr.gr_number, '-') as reference_code"),
+                    'a.asset_name as item_name',
                     DB::raw("NULL as category_name"),
                     DB::raw("NULL as department_name"),
                     DB::raw("NULL as vendor_name"),
                     DB::raw("'PROCUREMENT' as source"),
-                    DB::raw("'FIXED_ASSET' as asset_class"), // Langsung set default 'FIXED_ASSET'
+                    DB::raw("'FIXED_ASSET' as asset_class"),
                     DB::raw("'WAITING_REGISTRATION' as registration_status"),
-                    'gri.created_at'
+                    'a.created_at'
                 )
-                ->get(); // Jika gri.registration_status juga tidak ada, klausa where dihapus agar aman
+                ->get();
 
-            // 2. Registered Fixed Assets
+            // 2. Fixed Assets yang SUDAH REGISTERED
             $registeredAssets = DB::table('opt_assets as a')
                 ->leftJoin('mst_asset_category as cat', 'a.asset_category_id', '=', 'cat.id')
                 ->leftJoin('mst_org_department as dept', 'a.department_id', '=', 'dept.id')
                 ->leftJoin('mst_procurement_vendor as v', 'a.vendor_id', '=', 'v.id')
+                ->where(function ($q) {
+                    $q->where('a.registration_status', 'REGISTERED')
+                        ->orWhereNull('a.goods_receipt_item_id'); // Aset manual/migrasi
+                })
                 ->select(
                     'a.id as record_id',
                     'a.asset_code as reference_code',
@@ -68,8 +79,7 @@ class AssetRegistrationController extends Controller
                     DB::raw("'FIXED_ASSET' as asset_class"),
                     DB::raw("'REGISTERED' as registration_status"),
                     'a.created_at'
-                )
-                ->get();
+                )->get();
 
             // 3. Registered Consumables
             $registeredConsumables = DB::table('opt_consumables as c')
@@ -86,8 +96,7 @@ class AssetRegistrationController extends Controller
                     DB::raw("'CONSUMABLE' as asset_class"),
                     DB::raw("'REGISTERED' as registration_status"),
                     'c.created_at'
-                )
-                ->get();
+                )->get();
 
             // 4. Registered Licenses
             $registeredLicenses = DB::table('opt_licenses as l')
@@ -104,40 +113,27 @@ class AssetRegistrationController extends Controller
                     DB::raw("'LICENSE' as asset_class"),
                     DB::raw("'REGISTERED' as registration_status"),
                     'l.created_at'
-                )
-                ->get();
+                )->get();
 
-            // Combine & Sorting (WAITING_REGISTRATION selalu paling atas)
+            // Gabungkan dan urutkan (WAITING_REGISTRATION selalu di atas)
             $combined = $pendingGrItems
                 ->concat($registeredAssets)
                 ->concat($registeredConsumables)
                 ->concat($registeredLicenses)
                 ->sort(function ($a, $b) {
-                    if ($a->registration_status === 'WAITING_REGISTRATION' && $b->registration_status !== 'WAITING_REGISTRATION') {
-                        return -1;
-                    }
-                    if ($a->registration_status !== 'WAITING_REGISTRATION' && $b->registration_status === 'WAITING_REGISTRATION') {
-                        return 1;
-                    }
+                    if ($a->registration_status === 'WAITING_REGISTRATION' && $b->registration_status !== 'WAITING_REGISTRATION') return -1;
+                    if ($a->registration_status !== 'WAITING_REGISTRATION' && $b->registration_status === 'WAITING_REGISTRATION') return 1;
                     return strtotime($b->created_at) - strtotime($a->created_at);
                 })
                 ->values();
 
-            return response()->json([
-                'success' => true,
-                'data' => $combined
-            ]);
+            return response()->json(['success' => true, 'data' => $combined]);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal memuat data registrasi: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Detail Asset
-     */
+    // Mengambil detail Draft Asset berdasarkan ID opt_assets
     public function show($id)
     {
         $asset = Asset::with([
@@ -151,6 +147,103 @@ class AssetRegistrationController extends Controller
             'success' => true,
             'data' => new AssetRegistrationResource($asset),
         ]);
+    }
+
+    // Proses Finalisasi Registrasi (Mengubah status dari PENDING ke REGISTERED)
+    public function register(Request $request, $id)
+    {
+        $request->validate([
+            'asset_class' => 'required|in:FIXED_ASSET,CONSUMABLE,LICENSE',
+            'asset_category_id' => 'required|exists:mst_asset_category,id',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            $draftAsset = Asset::findOrFail($id);
+
+            if ($request->asset_class === 'FIXED_ASSET') {
+                $assetCode = $this->assetCodeService->generateAssetCode();
+
+                $draftAsset->update([
+                    'asset_code' => $assetCode,
+                    'asset_class' => 'FIXED_ASSET',
+                    'serial_number' => $request->serial_number,
+                    'asset_category_id' => $request->asset_category_id,
+                    'asset_type_id' => $request->asset_type_id,
+                    'brand_id' => $request->brand_id,
+                    'model_id' => $request->model_id,
+                    'status_id' => $request->status_id,
+                    'branch_id' => $request->branch_id,
+                    'location_id' => $request->location_id,
+                    'warranty_start' => $request->warranty_start,
+                    'warranty_end' => $request->warranty_end,
+                    'useful_life' => $request->useful_life,
+                    'remarks' => $request->remarks,
+                    'registration_status' => 'REGISTERED',
+                    'usage_status' => 'AVAILABLE',
+                    'qr_code' => $assetCode,
+                    'barcode' => $assetCode,
+                ]);
+            } elseif ($request->asset_class === 'LICENSE') {
+                $licenseCode = 'LIC-' . date('Ym') . '-' . Str::padLeft(License::count() + 1, 6, '0');
+
+                License::create([
+                    'goods_receipt_item_id' => $draftAsset->goods_receipt_item_id,
+                    'license_code' => $licenseCode,
+                    'software_name' => $draftAsset->asset_name,
+                    'category_id' => $request->asset_category_id,
+                    'vendor_id' => $draftAsset->vendor_id,
+                    'license_key' => $request->license_key ?? $request->serial_number,
+                    'license_type' => $request->license_type ?? 'SUBSCRIPTION',
+                    'total_seats' => $request->total_seats ?? 1,
+                    'purchase_cost' => $draftAsset->purchase_cost ?? 0,
+                    'expiration_date' => $request->expiration_date ?? $request->warranty_end,
+                    'registration_status' => 'REGISTERED',
+                    'status' => 'ACTIVE',
+                    'remarks' => $request->remarks,
+                    'created_by' => auth()->id(),
+                ]);
+
+                $draftAsset->forceDelete(); // Hapus draft di opt_assets karena dipindah ke tabel opt_licenses
+            } elseif ($request->asset_class === 'CONSUMABLE') {
+                $itemCode = 'CNS-' . date('Ym') . '-' . Str::padLeft(Consumable::count() + 1, 6, '0');
+                $qty = $request->total_quantity ?? 1;
+
+                Consumable::create([
+                    'goods_receipt_item_id' => $draftAsset->goods_receipt_item_id,
+                    'item_code' => $itemCode,
+                    'item_name' => $draftAsset->asset_name,
+                    'category_id' => $request->asset_category_id,
+                    'vendor_id' => $draftAsset->vendor_id,
+                    'unit_of_measure' => $request->unit_of_measure ?? 'Pcs',
+                    'total_quantity' => $qty,
+                    'available_quantity' => $qty,
+                    'min_stock_alert' => $request->min_stock_alert ?? 5,
+                    'unit_price' => $draftAsset->purchase_cost ?? 0,
+                    'location_id' => $request->location_id,
+                    'registration_status' => 'REGISTERED',
+                    'status' => 'IN_STOCK',
+                    'remarks' => $request->remarks,
+                    'created_by' => auth()->id(),
+                ]);
+
+                $draftAsset->forceDelete(); // Hapus draft di opt_assets karena dipindah ke tabel opt_consumables
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Item berhasil diregistrasikan ke modul ' . strtolower($request->asset_class) . '.',
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mendaftarkan item: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function storeExisting(Request $request)
@@ -291,126 +384,6 @@ class AssetRegistrationController extends Controller
             ], 500);
         }
     }
-
-    public function register(Request $request, $id)
-    {
-        $request->validate([
-            'asset_class' => 'required|in:FIXED_ASSET,CONSUMABLE,LICENSE',
-            'asset_category_id' => 'required|exists:mst_asset_category,id',
-            'asset_type_id' => 'nullable|exists:mst_asset_type,id',
-
-            'serial_number' => 'nullable|string|max:255',
-            'brand_id' => 'nullable|exists:mst_asset_brand,id',
-            'model_id' => 'nullable|exists:mst_asset_model,id',
-            'status_id' => 'nullable|exists:mst_asset_status,id',
-
-            'branch_id' => 'nullable|exists:mst_org_branch,id',
-            'location_id' => 'nullable|exists:mst_org_location,id',
-
-            'warranty_start' => 'nullable|date',
-            'warranty_end' => 'nullable|date',
-            'useful_life' => 'nullable|integer',
-            'remarks' => 'nullable|string',
-
-            'license_key' => 'nullable|string',
-            'license_type' => 'nullable|string',
-            'total_seats' => 'nullable|integer',
-            'expiration_date' => 'nullable|date',
-            'unit_of_measure' => 'nullable|string',
-            'total_quantity' => 'nullable|integer',
-            'min_stock_alert' => 'nullable|integer',
-        ]);
-
-        DB::beginTransaction();
-
-        try {
-            $draftAsset = Asset::findOrFail($id);
-
-            if ($request->asset_class === 'FIXED_ASSET') {
-                $assetCode = $this->assetCodeService->generateAssetCode();
-
-                $draftAsset->update([
-                    'asset_code' => $assetCode,
-                    'asset_class' => 'FIXED_ASSET',
-                    'serial_number' => $request->serial_number,
-                    'asset_category_id' => $request->asset_category_id,
-                    'asset_type_id' => $request->asset_type_id,
-                    'brand_id' => $request->brand_id,
-                    'model_id' => $request->model_id,
-                    'status_id' => $request->status_id,
-                    'branch_id' => $request->branch_id,
-                    'location_id' => $request->location_id,
-                    'warranty_start' => $request->warranty_start,
-                    'warranty_end' => $request->warranty_end,
-                    'useful_life' => $request->useful_life,
-                    'remarks' => $request->remarks,
-                    'registration_status' => 'REGISTERED',
-                    'qr_code' => $assetCode,
-                    'barcode' => $assetCode,
-                ]);
-            } elseif ($request->asset_class === 'LICENSE') {
-                $licenseCode = 'LIC-' . date('Ym') . '-' . Str::padLeft(License::count() + 1, 6, '0');
-
-                License::create([
-                    'goods_receipt_item_id' => $draftAsset->goods_receipt_item_id,
-                    'license_code' => $licenseCode,
-                    'software_name' => $draftAsset->asset_name,
-                    'category_id' => $request->asset_category_id,
-                    'vendor_id' => $draftAsset->vendor_id,
-                    'license_key' => $request->license_key ?? $request->serial_number,
-                    'license_type' => $request->license_type ?? 'SUBSCRIPTION',
-                    'total_seats' => $request->total_seats ?? 1,
-                    'purchase_date' => $draftAsset->purchase_date,
-                    'purchase_cost' => $draftAsset->purchase_cost ?? 0,
-                    'expiration_date' => $request->expiration_date ?? $request->warranty_end,
-                    'registration_status' => 'REGISTERED',
-                    'status' => 'ACTIVE',
-                    'remarks' => $request->remarks,
-                    'created_by' => auth()->id(),
-                ]);
-
-                $draftAsset->forceDelete();
-            } elseif ($request->asset_class === 'CONSUMABLE') {
-                $itemCode = 'CNS-' . date('Ym') . '-' . Str::padLeft(Consumable::count() + 1, 6, '0');
-                $qty = $request->total_quantity ?? 1;
-
-                Consumable::create([
-                    'goods_receipt_item_id' => $draftAsset->goods_receipt_item_id,
-                    'item_code' => $itemCode,
-                    'item_name' => $draftAsset->asset_name,
-                    'category_id' => $request->asset_category_id,
-                    'vendor_id' => $draftAsset->vendor_id,
-                    'unit_of_measure' => $request->unit_of_measure ?? 'Pcs',
-                    'total_quantity' => $qty,
-                    'available_quantity' => $qty,
-                    'min_stock_alert' => $request->min_stock_alert ?? 5,
-                    'unit_price' => $draftAsset->purchase_cost ?? 0,
-                    'location_id' => $request->location_id,
-                    'registration_status' => 'REGISTERED',
-                    'status' => 'IN_STOCK',
-                    'remarks' => $request->remarks,
-                    'created_by' => auth()->id(),
-                ]);
-
-                $draftAsset->forceDelete();
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Item berhasil diregistrasikan ke modul ' . strtolower($request->asset_class) . '.',
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal mendaftarkan item: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
     public function masters()
     {
         return response()->json([
@@ -433,36 +406,4 @@ class AssetRegistrationController extends Controller
             ],
         ]);
     }
-
-    // public function downloadTemplate()
-    // {
-    //     $filePath = storage_path('app/templates/template_import_aset_eksisting.xlsx');
-
-    //     if (!file_exists($filePath)) {
-    //         return response()->json(['message' => 'File template tidak ditemukan.'], 444);
-    //     }
-
-    //     return response()->download($filePath, 'Template_Import_Aset_Eksisting.xlsx');
-    // }
-
-    // public function importExisting(Request $request)
-    // {
-    //     $request->validate([
-    //         'file' => 'required|mimes:xlsx,xls,csv|max:5120',
-    //     ]);
-
-    //     try {
-    //         Excel::import(new ExistingAssetImport(), $request->file('file'));
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => 'Data aset berhasil di-import!',
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'Gagal mengimpor data: ' . $e->getMessage(),
-    //         ], 422);
-    //     }
-    // }
 }

@@ -16,6 +16,8 @@ use App\Models\Administration\Organization\Branch;
 use App\Models\Administration\Organization\Location;
 use App\Models\Administration\Procurement\Vendor;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use App\Models\Administration\User;
+use App\Models\Administration\Organization\Department;
 
 class AssetDirectoryController extends Controller
 {
@@ -190,73 +192,27 @@ class AssetDirectoryController extends Controller
     public function masters()
     {
         return response()->json([
-
             'success' => true,
-
             'data' => [
+                'categories' => Category::orderBy('name')->get(['id', 'name']),
+                'types' => Type::orderBy('name')->get(['id', 'name']),
+                'brands' => Brand::orderBy('name')->get(['id', 'name']),
+                'statuses' => Status::orderBy('name')->get(['id', 'name', 'color']),
+                'branches' => Branch::orderBy('name')->get(['id', 'name']),
+                'locations' => Location::orderBy('name')->get(['id', 'name']),
+                'vendors' => Vendor::orderBy('name')->get(['id', 'name']),
 
-                'categories' => Category::orderBy('name')->get([
-                    'id',
-                    'name',
-                ]),
-
-                'types' => Type::orderBy('name')->get([
-                    'id',
-                    'name',
-                ]),
-
-                'brands' => Brand::orderBy('name')->get([
-                    'id',
-                    'name',
-                ]),
-
-                'statuses' => Status::orderBy('name')->get([
-                    'id',
-                    'name',
-                    'color',
-                ]),
-
-                'branches' => Branch::orderBy('name')->get([
-                    'id',
-                    'name',
-                ]),
-
-                'locations' => Location::orderBy('name')->get([
-                    'id',
-                    'name',
-                ]),
-
-                'vendors' => Vendor::orderBy('name')->get([
-                    'id',
-                    'name',
-                ]),
+                // 🛠️ PERBAIKAN: Tambahkan data Master Users & Departments
+                'users' => User::orderBy('name')->get(['id', 'name']),
+                'departments' => Department::orderBy('name')->get(['id', 'name']),
 
                 'usage_statuses' => [
-
-                    [
-                        'id' => 'AVAILABLE',
-                        'name' => 'Available',
-                    ],
-
-                    [
-                        'id' => 'ASSIGNED',
-                        'name' => 'Assigned',
-                    ],
-
-                    [
-                        'id' => 'MAINTENANCE',
-                        'name' => 'Maintenance',
-                    ],
-
-                    [
-                        'id' => 'DISPOSED',
-                        'name' => 'Disposed',
-                    ],
-
+                    ['id' => 'AVAILABLE', 'name' => 'Available'],
+                    ['id' => 'ASSIGNED', 'name' => 'Assigned'],
+                    ['id' => 'MAINTENANCE', 'name' => 'Maintenance'],
+                    ['id' => 'DISPOSED', 'name' => 'Disposed'],
                 ],
-
             ],
-
         ]);
     }
 

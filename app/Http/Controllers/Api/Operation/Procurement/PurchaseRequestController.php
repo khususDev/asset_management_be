@@ -328,7 +328,7 @@ class PurchaseRequestController extends Controller
 
     public function printPdf($id)
     {
-        // 1. Tarik data PR (Memuat relasi approver dan rolenya)
+        // 1. Tarik data PR & Setting Perusahaan
         $pr = PurchaseRequest::with([
             'user',
             'items.uom',
@@ -338,6 +338,9 @@ class PurchaseRequestController extends Controller
             'workflowApprovals.approver.role'
         ])->findOrFail($id);
 
+        $companyName = \Illuminate\Support\Facades\DB::table('app_settings')
+            ->where('key', 'company_name')
+            ->value('value') ?? 'PT Merindo Makmur';
         // 2. Logika Warna Watermark Dinamis
         $status = $pr->status ?? 'PENDING';
         $watermarkColor = 'rgba(108, 117, 125, 0.08)';
@@ -350,189 +353,211 @@ class PurchaseRequestController extends Controller
         }
 
         $watermarkText = str_replace('_', ' ', $status);
-        $prDate = $pr->created_at ? $pr->created_at->format('d-M-y') : '-';
+        $prDate = $pr->created_at ? $pr->created_at->format('d-M-Y') : '-';
 
         $html = '
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Print PR - ' . ($pr->request_number ?? '-') . '</title>
-            <style>
-                body { font-family: Arial, sans-serif; font-size: 11px; color: #333; margin: 20px; position: relative; }
-                .text-center { text-align: center; }
-                .text-right { text-align: right; }
-                .bold { font-weight: bold; }
-                
-                .watermark {
-                    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg);
-                    font-size: 70px; font-weight: 900; color: ' . $watermarkColor . ';
-                    z-index: -1000; white-space: nowrap; letter-spacing: 6px;
-                    pointer-events: none; text-transform: uppercase;
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Print PR - ' . ($pr->request_number ?? '-') . '</title>
+        <style>
+            body { font-family: Arial, sans-serif; font-size: 11px; color: #333; margin: 20px; position: relative; }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .bold { font-weight: bold; }
+            
+            .watermark {
+                position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg);
+                font-size: 70px; font-weight: 900; color: ' . $watermarkColor . ';
+                z-index: -1000; white-space: nowrap; letter-spacing: 6px;
+                pointer-events: none; text-transform: uppercase;
+            }
+
+            .title { font-size: 16px; font-weight: bold; text-align: center; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; }
+            .header-table, .main-table, .footer-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+            .header-table td { border: 1px solid #000; padding: 6px; vertical-align: top; }
+            .main-table th { background-color: #002060; color: #fff; border: 1px solid #000; padding: 6px; font-size: 11px; text-transform: uppercase; }
+            .main-table td { border: 1px solid #000; padding: 5px; vertical-align: top; }
+            .sub-info-table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+            .sub-info-table td { border: none !important; padding: 2px 4px !important; font-size: 10px; }
+            .bg-pink { background-color: #FFC0CB; }
+            .footer-table th { background-color: #EAEAEA; border: 1px solid #000; padding: 5px; font-size: 10px; text-transform: uppercase; }
+            .footer-table td { border: 1px solid #000; padding: 10px 5px; height: 75px; text-align: center; vertical-align: bottom; }
+            
+            .stamp-approved, .stamp-rejected {
+                display: inline-block; padding: 3px 6px; font-weight: bold; font-size: 9px;
+                text-transform: uppercase; transform: rotate(-4deg); border-radius: 4px;
+                margin-bottom: 8px; letter-spacing: 0.5px;
+            }
+            .stamp-approved { color: #28a745; border: 2px solid #28a745; background-color: rgba(40, 167, 69, 0.03); }
+            .stamp-rejected { color: #dc3545; border: 2px solid #dc3545; background-color: rgba(220, 53, 69, 0.03); }
+
+            .copyright-footer {
+                    margin-top: 20px;
+                    font-size: 9px;
+                    color: #555;
+                    border-top: 1px dashed #ccc;
+                    padding-top: 6px;
+                    line-height: 1.4;
+            }
+
+            @media print {
+                /* Menyembunyikan tombol cetak saat proses print/preview */
+                .no-print {
+                    display: none !important;
+                }
+                .copyright-footer {
+                    position: fixed;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    background-color: #fff; /* Mencegah elemen latar belakang menggelembung */
                 }
 
-                .title { font-size: 16px; font-weight: bold; text-align: center; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; }
-                .header-table, .main-table, .footer-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-                .header-table td { border: 1px solid #000; padding: 6px; vertical-align: top; }
-                .main-table th { background-color: #002060; color: #fff; border: 1px solid #000; padding: 6px; font-size: 11px; text-transform: uppercase; }
-                .main-table td { border: 1px solid #000; padding: 5px; vertical-align: top; }
-                .sub-info-table { width: 100%; border-collapse: collapse; margin-top: 5px; }
-                .sub-info-table td { border: none !important; padding: 2px 4px !important; font-size: 10px; }
-                .bg-pink { background-color: #FFC0CB; }
-                .footer-table th { background-color: #EAEAEA; border: 1px solid #000; padding: 5px; font-size: 10px; text-transform: uppercase; }
-                .footer-table td { border: 1px solid #000; padding: 10px 5px; height: 75px; text-align: center; vertical-align: bottom; }
-                
-                .stamp-approved, .stamp-rejected {
-                    display: inline-block; padding: 3px 6px; font-weight: bold; font-size: 9px;
-                    text-transform: uppercase; transform: rotate(-4deg); border-radius: 4px;
-                    margin-bottom: 8px; letter-spacing: 0.5px;
-                }
-                .stamp-approved { color: #28a745; border: 2px solid #28a745; background-color: rgba(40, 167, 69, 0.03); }
-                .stamp-rejected { color: #dc3545; border: 2px solid #dc3545; background-color: rgba(220, 53, 69, 0.03); }
-
-                @media print {
                 * {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-    }
-    @page {
-        size: A4 portrait;
-        margin: 10mm;
-    }
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }
+                @page {
+                    size: A4 portrait;
+                    margin: 10mm;
+                }
 
-    body {
-        margin: 0;
-        padding: 0;
-    }
+                body {
+                    margin: 0;
+                    padding: 0;
+                    padding-right: 10px;
+                    padding-bottom: 30px;
+                }
 
-    /* Memastikan watermark tidak menutupi atau menggeser konten lain */
-    .watermark {
-        position: absolute; /* Ubah dari fixed */
-        top: 50%;
-        left: 50%;
-        z-index: -1; /* Pastikan di belakang */
-    }
+                .watermark {
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    z-index: -1;
+                }
 
-    /* Pastikan header dan footer tidak meluap */
-    .header-table, .main-table, .footer-table {
-        width: 100% !important;
-        table-layout: fixed; /* Mencegah tabel melebar keluar kertas */
-    }
-}
-            </style>
-        </head>
-        <body>
-            <div class="watermark">' . $watermarkText . '</div>
+                .header-table, .main-table, .footer-table {
+                    width: 100% !important;
+                    table-layout: fixed;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="watermark">' . $watermarkText . '</div>
 
-            <div class="no-print" style="margin-bottom: 15px; background: #FFF3CD; padding: 10px; border: 1px solid #FFEBAA; border-radius: 4px;">
-                <button onclick="window.print()" style="padding: 6px 12px; background: #002060; color: #fff; border: none; border-radius: 3px; cursor: pointer; font-weight: bold;">🖨️ Cetak Sekarang / Simpan PDF</button>
-                <span style="margin-left: 10px; color: #666;">Gunakan layout <b>Portrait</b> pada pengaturan cetak browser.</span>
-            </div>
+        <div class="no-print" style="margin-bottom: 15px; background: #FFF3CD; padding: 10px; border: 1px solid #FFEBAA; border-radius: 4px;">
+            <button onclick="window.print()" style="padding: 6px 12px; background: #002060; color: #fff; border: none; border-radius: 3px; cursor: pointer; font-weight: bold;">🖨️ Cetak Sekarang / Simpan PDF</button>
+        </div>
 
-            <div class="title">Purchase Request</div>
+        <div class="title">Purchase Request</div>
 
-            <table class="header-table">
+        <table class="header-table">
+            <tr>
+                <td style="width: 15%;">Date</td>
+                <td style="width: 35%;" class="bold">' . $prDate . '</td>
+                <td style="width: 15%;">PR No.</td>
+                <td style="width: 35%;" class="bold">' . ($pr->request_number ?? '-') . '</td>
+            </tr>
+            <tr>
+                <td>Prepared by</td>
+                <td class="bold">' . ($pr->user->name ?? '-') . '</td>
+                <td rowspan="2">Purpose</td>
+                <td rowspan="2" class="bold" style="white-space: pre-line;">' . ($pr->purpose ?? '-') . '</td>
+            </tr>
+            <tr>
+                <td>Requested by<br><span style="font-size:8px;color:#777;">(name & signature)</span></td>
+                <td class="bold" style="vertical-align: bottom; text-align: center;">
+                    <div style="font-size: 9px; color: #28a745; font-weight: bold; margin-bottom: 2px;">✓ SUBMITTED DIGITAL</div>
+                    <div style="font-size: 11px;">' . ($pr->user->name ?? '-') . '</div>
+                </td>
+            </tr>
+        </table>
+
+        <table class="main-table">
+            <thead>
                 <tr>
-                    <td style="width: 15%;">Date</td>
-                    <td style="width: 35%;" class="bold">' . $prDate . '</td>
-                    <td style="width: 15%;">PR No.</td>
-                    <td style="width: 35%;" class="bold">' . ($pr->request_number ?? '-') . '</td>
+                    <th style="width: 4%;">No.</th>
+                    <th style="width: 56%;">Description</th>
+                    <th style="width: 6%;">Qty</th>
+                    <th style="width: 6%;">Unit</th>
+                    <th style="width: 14%;">Unit Price (IDR)</th>
+                    <th style="width: 14%;">Amount (IDR)</th>
                 </tr>
-                <tr>
-                    <td>Prepared by</td>
-                    <td class="bold">' . ($pr->user->name ?? '-') . '</td>
-                    <td rowspan="2">Purpose</td>
-                    <td rowspan="2" class="bold" style="white-space: pre-line;">' . ($pr->purpose ?? '-') . '</td>
-                </tr>
-                <tr>
-                    <td>Requested by<br><span style="font-size:8px;color:#777;">(name & signature)</span></td>
-                    <td class="bold" style="vertical-align: bottom; text-align: center;">
-                        <div style="font-size: 9px; color: #28a745; font-weight: bold; margin-bottom: 2px;">✓ SUBMITTED DIGITAL</div>
-                        <div style="font-size: 11px;">' . ($pr->user->name ?? '-') . '</div>
-                    </td>
-                </tr>
-            </table>
-
-            <table class="main-table">
-                <thead>
-                    <tr>
-                        <th style="width: 4%;">No.</th>
-                        <th style="width: 56%;">Description</th>
-                        <th style="width: 6%;">Qty</th>
-                        <th style="width: 6%;">Unit</th>
-                        <th style="width: 14%;">Unit Price (IDR)</th>
-                        <th style="width: 14%;">Amount (IDR)</th>
-                    </tr>
-                </thead>
-                <tbody>';
+            </thead>
+            <tbody>';
 
         foreach ($pr->items as $index => $item) {
             $html .= '
-                    <tr>
-                        <td class="text-center bold">' . ($index + 1) . '</td>
-                        <td>
-                            <div class="bold" style="font-size:11px; margin-bottom: 4px;">' . ($item->item_description ?? '-') . '</div>
-                            <table class="sub-info-table">
-                                <tr>
-                                    <td style="width: 30%; color: #555;">Need to issue PO</td>
-                                    <td class="bold ' . ($item->need_to_issue_po ? '' : 'bg-pink') . '">' . ($item->need_to_issue_po ? 'YES' : 'NO') . '</td>
-                                </tr>
-                                <tr>
-                                    <td style="color: #555;">Vendor Name</td>
-                                    <td class="bold">' . ($item->vendor->name ?? '-') . '</td>
-                                </tr>
-                                <tr>
-                                    <td style="color: #555;">Vendor PIC / Contact</td>
-                                    <td>' . ($item->pic_contact ?? '-') . '</td>
-                                </tr>
-                                <tr>
-    <td style="color: #555;">URL</td>
-    <td style="word-break: break-all; max-width: 150px; vertical-align: top;">
-        <!-- Hapus max-height, gunakan line-clamp dan line-height -->
-        <div style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; font-size: 11px;">
-            <a href="' . ($item->url ?? '#') . '" target="_blank" style="color: blue; text-decoration: none;">
-                ' . ($item->url ?? '-') . '
-            </a>
-        </div>
-    </td>
-</tr>
-                                <tr>
-                                    <td style="color: #555;">Price Include PPN</td>
-                                    <td class="bold ' . ($item->price_include_ppn ? '' : 'bg-pink') . '">' . ($item->price_include_ppn ? 'YES' : 'NO') . '</td>
-                                </tr>
-                                <tr>
-                                    <td style="color: #555;">TOP (Term of Payment)</td>
-                                    <td>' . ($item->paymentTerm->name ?? '-') . '</td>
-                                </tr>
-                                <tr>
-                                    <td style="color: #555;">Expected Arrival Date</td>
-                                    <td class="bold">' . ($item->expected_arrival_date ? date('d M Y', strtotime($item->expected_arrival_date)) : '-') . '</td>
-                                </tr>
-                                <tr>
-                                    <td style="color: #555;">Delivery Address</td>
-                                    <td>' . ($item->deliveryBranch ? ($item->deliveryBranch->code . ' | ' . $item->deliveryBranch->name) : '-') . '</td>
-                                </tr>
-                                <tr>
-                                    <td style="color: #555;">Purpose per Item</td>
-                                    <td style="color: #444; font-style: italic;">' . ($item->item_purpose ?? '-') . '</td>
-                                </tr>
-                            </table>
-                        </td>
-                        <td class="text-center bold" style="vertical-align: middle;">' . ($item->quantity ?? 0) . '</td>
-                        <td class="text-center" style="vertical-align: middle;">' . ($item->uom->name ?? 'pcs') . '</td>
-                        <td class="text-right bold" style="vertical-align: middle;">' . number_format((float)($item->unit_price ?? 0), 0, ',', '.') . '</td>
-                        <td class="text-right bold" style="vertical-align: middle;">' . number_format((float)($item->total_amount ?? 0), 0, ',', '.') . '</td>
-                    </tr>';
+                <tr>
+                    <td class="text-center bold">' . ($index + 1) . '</td>
+                    <td>
+                        <div class="bold" style="font-size:11px; margin-bottom: 4px;">' . ($item->item_description ?? '-') . '</div>
+                        <table class="sub-info-table">
+                            <tr>
+                                <td style="width: 30%; color: #555;">Need to issue PO</td>
+                                <td class="bold ' . ($item->need_to_issue_po ? '' : 'bg-pink') . '">' . ($item->need_to_issue_po ? 'YES' : 'NO') . '</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #555;">Vendor Type</td>
+                                <td class="bold">' . ($item->vendor->name ?? '-') . '</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #555;">Vendor Name</td>
+                                <td class="bold">' . ($item->vendor_name ?? '-') . '</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #555;">Vendor PIC / Contact</td>
+                                <td>' . ($item->pic_contact ?? '-') . '</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #555;">URL</td>
+                                <td style="word-break: break-all; max-width: 150px; vertical-align: top;">
+                                    <div style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; font-size: 11px;">
+                                        <a href="' . ($item->url ?? '#') . '" target="_blank" style="color: blue; text-decoration: none;">
+                                            ' . ($item->url ?? '-') . '
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="color: #555;">Price Include PPN</td>
+                                <td class="bold ' . ($item->price_include_ppn ? '' : 'bg-pink') . '">' . ($item->price_include_ppn ? 'YES' : 'NO') . '</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #555;">TOP (Term of Payment)</td>
+                                <td>' . ($item->paymentTerm->name ?? '-') . '</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #555;">Expected Arrival Date</td>
+                                <td class="bold">' . ($item->expected_arrival_date ? date('d M Y', strtotime($item->expected_arrival_date)) : '-') . '</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #555;">Delivery Address</td>
+                                <td>' . ($item->deliveryBranch ? ($item->deliveryBranch->code . ' | ' . $item->deliveryBranch->name) : '-') . '</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #555;">Purpose per Item</td>
+                                <td style="color: #444; font-style: italic;">' . ($item->item_purpose ?? '-') . '</td>
+                            </tr>
+                        </table>
+                    </td>
+                    <td class="text-center bold" style="vertical-align: middle;">' . ($item->quantity ?? 0) . '</td>
+                    <td class="text-center" style="vertical-align: middle;">' . ($item->uom->name ?? 'pcs') . '</td>
+                    <td class="text-right bold" style="vertical-align: middle;">' . number_format((float)($item->unit_price ?? 0), 0, ',', '.') . '</td>
+                    <td class="text-right bold" style="vertical-align: middle;">' . number_format((float)($item->total_amount ?? 0), 0, ',', '.') . '</td>
+                </tr>';
         }
 
         $html .= '
-                    <tr style="background-color: #002060; color: #fff;">
-                        <td colspan="5" class="text-right bold" style="padding: 8px; border-color: #000;">TOTAL (IDR)</td>
-                        <td class="text-right bold" style="padding: 8px; border-color: #000; font-size: 12px;">' . number_format((float)($pr->total_estimated_amount ?? 0), 0, ',', '.') . '</td>
-                    </tr>
-                </tbody>
-            </table>';
+                <tr style="background-color: #002060; color: #fff;">
+                    <td colspan="5" class="text-right bold" style="padding: 8px; border-color: #000;">TOTAL (IDR)</td>
+                    <td class="text-right bold" style="padding: 8px; border-color: #000; font-size: 12px;">' . number_format((float)($pr->total_estimated_amount ?? 0), 0, ',', '.') . '</td>
+                </tr>
+            </tbody>
+        </table>';
 
-        // --- DILAKUKAN RE-UNIFIKASI LOGIKA FOOTER WORKFLOW ---
         $approvals = $pr->workflowApprovals;
         $totalCols = count($approvals);
         $approvalMethod = $pr->approval_method ?? 'SYSTEM';
@@ -542,7 +567,6 @@ class PurchaseRequestController extends Controller
 
             $html .= '<table class="footer-table"><thead><tr>';
 
-            // Generate Header kolom berdasarkan jumlah level data yang tersimpan di database
             foreach ($approvals as $index => $wfl) {
                 if ($index === 0) {
                     $headerText = 'ACKNOWLEDGE';
@@ -559,21 +583,17 @@ class PurchaseRequestController extends Controller
 
             $html .= '</tr></thead><tbody><tr>';
 
-            // Looping data user approver asli dari data yang terkunci di database
             foreach ($approvals as $wfl) {
                 $html .= '<td>';
 
                 $jabatan = $wfl->approver->role->name ?? '-';
                 $namaApprover = $wfl->approver->name ?? 'N/A';
 
-                // JIKA MANUAL: Selalu tampilkan ruang kosong untuk pulpen, namun nama user asli tetap diprint di bawahnya
                 if ($approvalMethod === 'MANUAL') {
-                    $html .= '<div style="height: 45px;"></div>'; // Ruang kosong tanda tangan manual
+                    $html .= '<div style="height: 45px;"></div>';
                     $html .= '<div class="bold" style="font-size:11px;">' . $namaApprover . '</div>';
                     $html .= '<div style="font-size: 9px; color: #555; margin-top: 2px;">' . $jabatan . '</div>';
-                }
-                // JIKA BY SYSTEM: Tampilkan stempel digital sesuai status approval di database
-                else {
+                } else {
                     if ($wfl->status === 'APPROVED') {
                         $actionDate = $wfl->action_date ? date('d M Y H:i', strtotime($wfl->action_date)) : '-';
                         $html .= '<div class="stamp-approved">APPROVED DIGITAL</div>';
@@ -587,7 +607,6 @@ class PurchaseRequestController extends Controller
                         $html .= '<div style="font-size: 9px; color: #555; margin-top: 2px;">' . $jabatan . '</div>';
                         $html .= '<div style="font-size: 8px; color: #666; margin-top: 2px;">Date: ' . $actionDate . '</div>';
                     } else {
-                        // Jika status masih PENDING di system approval
                         $html .= '<div style="font-size: 9px; color: #bbb; font-style: italic; margin-bottom: 35px;">[ Waiting Approval ]</div>';
                         $html .= '<div class="bold" style="font-size:11px;">( ' . $namaApprover . ' )</div>';
                         $html .= '<div style="font-size: 10px; color: #333; margin-top: 2px;">' . $jabatan . '</div>';
@@ -600,7 +619,14 @@ class PurchaseRequestController extends Controller
             $html .= '</tr></tbody></table>';
         }
 
-        $html .= '</body></html>';
+        // --- FOOTER COPYRIGHT PERUSAHAAN ---
+        $html .= '
+        <div class="copyright-footer">
+            <div class="bold" style="font-size: 10px; color: #222;">' . $companyName . '</div>
+            <div>Asset Management System</div>
+        </div>
+    </body>
+    </html>';
 
         return response($html);
     }
